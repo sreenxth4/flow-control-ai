@@ -1,5 +1,5 @@
-import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealth } from "./mock-data";
-import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus } from "./types";
+import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealth, getMockNetworkStatus, getMockRoute } from "./mock-data";
+import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus, SignalOptimizationRequest, SignalOptimizationResult, NetworkStatus, RouteRequest, RouteResult } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
 
@@ -67,4 +67,50 @@ export async function submitVideoDetection(
     method: "POST",
     body: formData,
   });
+}
+
+// Signal Optimization (main backend)
+export async function optimizeSignals(request: SignalOptimizationRequest): Promise<SignalOptimizationResult> {
+  try {
+    return await apiFetch<SignalOptimizationResult>("/api/optimize_signals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    // Mock response
+    return {
+      junction_id: request.junction_id,
+      signal_timings: [
+        { phase: "Phase A", green_duration: 35 },
+        { phase: "Phase B", green_duration: 25 },
+      ],
+      cycle_time: 90,
+      density_level: "MEDIUM",
+      traffic_delay: 12.5,
+      signal_wait: 8.3,
+    };
+  }
+}
+
+// Network Status
+export async function fetchNetworkStatus(): Promise<NetworkStatus> {
+  try {
+    return await apiFetch<NetworkStatus>("/api/network_status");
+  } catch {
+    return getMockNetworkStatus();
+  }
+}
+
+// Route Finding
+export async function findRoute(request: RouteRequest): Promise<RouteResult> {
+  try {
+    return await apiFetch<RouteResult>("/api/get_route", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    return getMockRoute(request.source, request.destination);
+  }
 }

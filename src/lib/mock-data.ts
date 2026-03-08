@@ -1,4 +1,4 @@
-import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel } from "./types";
+import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult } from "./types";
 
 const densities: DensityLevel[] = ["LOW", "MEDIUM", "HIGH"];
 const randomDensity = (): DensityLevel => densities[Math.floor(Math.random() * 3)];
@@ -98,4 +98,82 @@ export function getMockPerformance(): PerformanceData {
 
 export function getMockHealth(): HealthStatus {
   return { status: "healthy", phase: "operational", detector: "YOLOv9", model: "yolov9-c", video_support: true };
+}
+
+export function getMockNetworkStatus(): NetworkStatus {
+  return {
+    network: {
+      num_junctions: 10,
+      num_roads: 33,
+      junction_costs: mockJunctions.map((j, i) => ({
+        junction_id: j.id,
+        traffic_delay: Math.round((5 + Math.random() * 20) * 10) / 10,
+        signal_wait: Math.round((3 + Math.random() * 15) * 10) / 10,
+      })),
+      last_update: new Date().toISOString(),
+    },
+  };
+}
+
+// Simple path finding for mock - using adjacency
+const adjacency: Record<string, string[]> = {
+  J1: ["J2", "J3", "J4", "J7", "J9"],
+  J2: ["J1", "J6", "J7", "J10"],
+  J3: ["J1", "J5", "J9"],
+  J4: ["J1", "J6", "J9"],
+  J5: ["J3", "J7", "J8"],
+  J6: ["J2", "J4", "J10"],
+  J7: ["J1", "J2", "J5", "J10"],
+  J8: ["J5", "J9"],
+  J9: ["J1", "J3", "J4", "J8"],
+  J10: ["J2", "J6", "J7"],
+};
+
+function bfs(start: string, end: string): string[] | null {
+  const queue: string[][] = [[start]];
+  const visited = new Set<string>([start]);
+  while (queue.length > 0) {
+    const path = queue.shift()!;
+    const node = path[path.length - 1];
+    if (node === end) return path;
+    for (const neighbor of adjacency[node] || []) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push([...path, neighbor]);
+      }
+    }
+  }
+  return null;
+}
+
+export function getMockRoute(sourceIdx: number, destIdx: number): RouteResult {
+  const sourceId = `J${sourceIdx + 1}`;
+  const destId = `J${destIdx + 1}`;
+  const path = bfs(sourceId, destId);
+  
+  if (!path) {
+    return { success: false, path: [], segments: [], total_cost: 0, num_junctions: 0 };
+  }
+
+  const segments = [];
+  let totalCost = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const road = mockRoads.find((r) => r.from_junction === path[i] && r.to_junction === path[i + 1]);
+    const cost = road ? road.length_km * 10 + (60 / road.speed_limit) * 5 : 5;
+    totalCost += cost;
+    segments.push({
+      from_junction: path[i],
+      to_junction: path[i + 1],
+      road_name: road?.name || "Unknown Road",
+      cost: Math.round(cost * 10) / 10,
+    });
+  }
+
+  return {
+    success: true,
+    path,
+    segments,
+    total_cost: Math.round(totalCost * 10) / 10,
+    num_junctions: path.length,
+  };
 }

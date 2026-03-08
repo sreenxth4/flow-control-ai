@@ -8,7 +8,7 @@ import { isUsingMockData } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
 
-const MapPage = () => {
+const AdminMapPage = () => {
   const { data } = useMapData();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedJunction, setSelectedJunction] = useState<string | null>(null);
@@ -85,4 +85,4 @@ const MapPage = () => {
   );
 };
 
-export default MapPage;
+export default AdminMapPage;
