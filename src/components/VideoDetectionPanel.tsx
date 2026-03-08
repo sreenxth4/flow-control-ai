@@ -107,7 +107,7 @@ export function VideoDetectionPanel() {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
       center: [17.4850, 78.4050],
-      zoom: 15,
+      zoom: 13,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
