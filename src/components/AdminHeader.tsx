@@ -6,9 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { to: "/admin", label: "Map", icon: Map },
-  { to: "/admin/detection", label: "Detection", icon: Video },
-  { to: "/admin/optimize", label: "Signals", icon: Zap },
+  { to: "/admin", label: "Upload & Analyze", icon: Video },
   { to: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
 ];
 
