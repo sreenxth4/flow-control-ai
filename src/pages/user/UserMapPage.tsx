@@ -22,8 +22,8 @@ const UserMapPage = () => {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
-      center: [17.4800, 78.3950],
-      zoom: 12,
+      center: [17.4935, 78.3990],
+      zoom: 16,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
