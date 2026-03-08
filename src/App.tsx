@@ -2,10 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AppHeader } from "@/components/AppHeader";
-import { PortalProvider, usePortal } from "@/contexts/PortalContext";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
+import { AdminLayout } from "@/layouts/AdminLayout";
+import { UserLayout } from "@/layouts/UserLayout";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 
 // Admin pages
 import AdminMapPage from "./pages/admin/AdminMapPage";
@@ -20,41 +22,35 @@ import UserConditionsPage from "./pages/user/UserConditionsPage";
 
 const queryClient = new QueryClient();
 
-function AppRoutes() {
-  const { isAdmin } = usePortal();
-
-  return (
-    <Routes>
-      {/* User routes */}
-      <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <UserMapPage />} />
-      <Route path="/routes" element={isAdmin ? <Navigate to="/admin" replace /> : <UserRoutePage />} />
-      <Route path="/conditions" element={isAdmin ? <Navigate to="/admin" replace /> : <UserConditionsPage />} />
-
-      {/* Admin routes */}
-      <Route path="/admin" element={!isAdmin ? <Navigate to="/" replace /> : <AdminMapPage />} />
-      <Route path="/admin/detection" element={!isAdmin ? <Navigate to="/" replace /> : <AdminDetectionPage />} />
-      <Route path="/admin/optimize" element={!isAdmin ? <Navigate to="/" replace /> : <AdminOptimizePage />} />
-      <Route path="/admin/dashboard" element={!isAdmin ? <Navigate to="/" replace /> : <AdminDashboardPage />} />
-
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-}
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <PortalProvider>
-          <div className="flex h-screen flex-col">
-            <AppHeader />
-            <main className="flex-1 overflow-hidden">
-              <AppRoutes />
-            </main>
-          </div>
-        </PortalProvider>
+        <AdminAuthProvider>
+          <Routes>
+            {/* Landing */}
+            <Route path="/" element={<LandingPage />} />
+
+            {/* Admin - protected */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminMapPage />} />
+              <Route path="detection" element={<AdminDetectionPage />} />
+              <Route path="optimize" element={<AdminOptimizePage />} />
+              <Route path="dashboard" element={<AdminDashboardPage />} />
+            </Route>
+
+            {/* User - public */}
+            <Route path="/user" element={<UserLayout />}>
+              <Route index element={<UserMapPage />} />
+              <Route path="routes" element={<UserRoutePage />} />
+              <Route path="conditions" element={<UserConditionsPage />} />
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AdminAuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
