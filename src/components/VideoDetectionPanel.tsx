@@ -17,15 +17,15 @@ import { mockJunctions } from "@/lib/mock-data";
 // Junction camera options
 const JUNCTION_CAMERAS = [
   { id: "J1", name: "Kukatpally Y Junction" },
-  { id: "J2", name: "KPHB Colony" },
-  { id: "J3", name: "Balanagar" },
-  { id: "J4", name: "JNTU College" },
-  { id: "J5", name: "Moosapet" },
-  { id: "J6", name: "Miyapur" },
-  { id: "J7", name: "Hitech City" },
-  { id: "J8", name: "Bharath Nagar" },
-  { id: "J9", name: "Erragadda" },
-  { id: "J10", name: "ESI Hospital" },
+  { id: "J2", name: "KPHB Phase 1" },
+  { id: "J3", name: "KPHB Phase 3" },
+  { id: "J4", name: "Vasanth Nagar" },
+  { id: "J5", name: "Pragathi Colony" },
+  { id: "J6", name: "MIG Colony" },
+  { id: "J7", name: "Allwyn Colony" },
+  { id: "J8", name: "Municipal Office" },
+  { id: "J9", name: "Balaji Nagar" },
+  { id: "J10", name: "Metro Station" },
 ] as const;
 
 const DENSITY_COLORS: Record<DensityLevel, string> = {
