@@ -48,7 +48,7 @@ export function JunctionSidebar({ junctions, signalPhases, onJunctionClick, onJu
                       className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
                     >
                       <Signal className="h-3 w-3" />
-                      {p.phase_name.replace(j.name + " ", "")}
+                      {(p.phase_name ?? "").replace(j.name + " ", "")}
                     </span>
                   ))}
                 </div>
