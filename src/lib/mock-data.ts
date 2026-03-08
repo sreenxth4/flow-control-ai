@@ -29,60 +29,62 @@ const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: Veh
 };
 
 export const mockJunctions = [
-  { id: "J1", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4940, lng: 78.3990 },
-  { id: "J2", name: "KPHB Phase 1", type: "intersection", lat: 17.4940, lng: 78.3960 },
-  { id: "J3", name: "KPHB Phase 3", type: "intersection", lat: 17.4960, lng: 78.3960 },
-  { id: "J4", name: "Vasanth Nagar", type: "intersection", lat: 17.4960, lng: 78.3990 },
-  { id: "J5", name: "Pragathi Colony", type: "intersection", lat: 17.4940, lng: 78.4020 },
-  { id: "J6", name: "MIG Colony", type: "intersection", lat: 17.4960, lng: 78.4020 },
-  { id: "J7", name: "Allwyn Colony", type: "intersection", lat: 17.4920, lng: 78.4020 },
-  { id: "J8", name: "Municipal Office", type: "intersection", lat: 17.4920, lng: 78.3990 },
-  { id: "J9", name: "Balaji Nagar", type: "intersection", lat: 17.4920, lng: 78.3960 },
-  { id: "J10", name: "Metro Station", type: "intersection", lat: 17.4900, lng: 78.3990 },
+  { id: "J1", name: "JNTU Main Gate", type: "intersection", lat: 17.4922, lng: 78.3955 },
+  { id: "J2", name: "GHMC Park Signal", type: "intersection", lat: 17.4920, lng: 78.3988 },
+  { id: "J3", name: "HMT Hills Junction", type: "intersection", lat: 17.4948, lng: 78.3958 },
+  { id: "J4", name: "Road No 1 Circle", type: "intersection", lat: 17.4946, lng: 78.3990 },
+  { id: "J5", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4963, lng: 78.3951 },
+  { id: "J6", name: "Apollo Pharmacy Jn", type: "intersection", lat: 17.4918, lng: 78.4018 },
+  { id: "J7", name: "KPHB Bus Stop", type: "intersection", lat: 17.4945, lng: 78.4022 },
+  { id: "J8", name: "Sathavahana Nagar Gate", type: "intersection", lat: 17.4968, lng: 78.3992 },
+  { id: "J9", name: "NTR Nagar Junction", type: "intersection", lat: 17.4950, lng: 78.4052 },
+  { id: "J10", name: "Allwyn Colony X Roads", type: "intersection", lat: 17.4966, lng: 78.4025 },
 ];
 
 export const mockRoads = [
-  // North row (horizontal): J3—J4—J6
-  { id: "R1", name: "KPHB-Vasanth Rd", from_junction: "J3", to_junction: "J4", lanes: 3, speed_limit: 40, length_km: 0.33 },
-  { id: "R2", name: "Vasanth-KPHB Rd", from_junction: "J4", to_junction: "J3", lanes: 3, speed_limit: 40, length_km: 0.33 },
-  { id: "R3", name: "Vasanth-MIG Rd", from_junction: "J4", to_junction: "J6", lanes: 3, speed_limit: 40, length_km: 0.33 },
-  { id: "R4", name: "MIG-Vasanth Rd", from_junction: "J6", to_junction: "J4", lanes: 3, speed_limit: 40, length_km: 0.33 },
-  // Middle row (horizontal): J2—J1—J5
-  { id: "R5", name: "KPHB-Y Jn Rd", from_junction: "J2", to_junction: "J1", lanes: 4, speed_limit: 40, length_km: 0.33 },
-  { id: "R6", name: "Y Jn-KPHB Rd", from_junction: "J1", to_junction: "J2", lanes: 4, speed_limit: 40, length_km: 0.33 },
-  { id: "R7", name: "Y Jn-Pragathi Rd", from_junction: "J1", to_junction: "J5", lanes: 3, speed_limit: 40, length_km: 0.33 },
-  { id: "R8", name: "Pragathi-Y Jn Rd", from_junction: "J5", to_junction: "J1", lanes: 3, speed_limit: 40, length_km: 0.33 },
-  // South row (horizontal): J9—J8—J7
-  { id: "R9", name: "Balaji-Municipal Rd", from_junction: "J9", to_junction: "J8", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  { id: "R10", name: "Municipal-Balaji Rd", from_junction: "J8", to_junction: "J9", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  { id: "R11", name: "Municipal-Allwyn Rd", from_junction: "J8", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  { id: "R12", name: "Allwyn-Municipal Rd", from_junction: "J7", to_junction: "J8", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  // West column (vertical): J3—J2—J9
-  { id: "R13", name: "KPHB3-KPHB1 Rd", from_junction: "J3", to_junction: "J2", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  { id: "R14", name: "KPHB1-KPHB3 Rd", from_junction: "J2", to_junction: "J3", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  { id: "R15", name: "KPHB1-Balaji Rd", from_junction: "J2", to_junction: "J9", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  { id: "R16", name: "Balaji-KPHB1 Rd", from_junction: "J9", to_junction: "J2", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  // Center column (vertical): J4—J1—J8—J10
-  { id: "R17", name: "Vasanth-Y Jn Rd", from_junction: "J4", to_junction: "J1", lanes: 4, speed_limit: 40, length_km: 0.22 },
-  { id: "R18", name: "Y Jn-Vasanth Rd", from_junction: "J1", to_junction: "J4", lanes: 4, speed_limit: 40, length_km: 0.22 },
-  { id: "R19", name: "Y Jn-Municipal Rd", from_junction: "J1", to_junction: "J8", lanes: 3, speed_limit: 35, length_km: 0.22 },
-  { id: "R20", name: "Municipal-Y Jn Rd", from_junction: "J8", to_junction: "J1", lanes: 3, speed_limit: 35, length_km: 0.22 },
-  { id: "R21", name: "Municipal-Metro Rd", from_junction: "J8", to_junction: "J10", lanes: 3, speed_limit: 40, length_km: 0.22 },
-  { id: "R22", name: "Metro-Municipal Rd", from_junction: "J10", to_junction: "J8", lanes: 3, speed_limit: 40, length_km: 0.22 },
-  // East column (vertical): J6—J5—J7
-  { id: "R23", name: "MIG-Pragathi Rd", from_junction: "J6", to_junction: "J5", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  { id: "R24", name: "Pragathi-MIG Rd", from_junction: "J5", to_junction: "J6", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  { id: "R25", name: "Pragathi-Allwyn Rd", from_junction: "J5", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  { id: "R26", name: "Allwyn-Pragathi Rd", from_junction: "J7", to_junction: "J5", lanes: 2, speed_limit: 30, length_km: 0.22 },
-  // Diagonals (shortcuts)
-  { id: "R27", name: "KPHB3-Y Jn Diagonal", from_junction: "J3", to_junction: "J1", lanes: 2, speed_limit: 30, length_km: 0.40 },
-  { id: "R28", name: "Y Jn-KPHB3 Diagonal", from_junction: "J1", to_junction: "J3", lanes: 2, speed_limit: 30, length_km: 0.40 },
-  { id: "R29", name: "Y Jn-Allwyn Diagonal", from_junction: "J1", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.40 },
-  { id: "R30", name: "Allwyn-Y Jn Diagonal", from_junction: "J7", to_junction: "J1", lanes: 2, speed_limit: 30, length_km: 0.40 },
-  { id: "R31", name: "Vasanth-Pragathi Diagonal", from_junction: "J4", to_junction: "J5", lanes: 2, speed_limit: 30, length_km: 0.40 },
-  { id: "R32", name: "Pragathi-Vasanth Diagonal", from_junction: "J5", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.40 },
-  // One-way connector
-  { id: "R33", name: "Metro-Balaji One-way", from_junction: "J10", to_junction: "J9", lanes: 2, speed_limit: 25, length_km: 0.40 },
+  // === East-West roads (following KPHB colony cross-streets) ===
+  // South row: J1 — J2 — J6
+  { id: "R1", name: "Malaysian Twp Rd E", from_junction: "J1", to_junction: "J2", lanes: 3, speed_limit: 40, length_km: 0.36 },
+  { id: "R2", name: "Malaysian Twp Rd W", from_junction: "J2", to_junction: "J1", lanes: 3, speed_limit: 40, length_km: 0.36 },
+  { id: "R3", name: "Road No 5 E", from_junction: "J2", to_junction: "J6", lanes: 2, speed_limit: 30, length_km: 0.33 },
+  { id: "R4", name: "Road No 5 W", from_junction: "J6", to_junction: "J2", lanes: 2, speed_limit: 30, length_km: 0.33 },
+  // Middle row: J3 — J4 — J7 — J9
+  { id: "R5", name: "Road No 1 E", from_junction: "J3", to_junction: "J4", lanes: 3, speed_limit: 40, length_km: 0.35 },
+  { id: "R6", name: "Road No 1 W", from_junction: "J4", to_junction: "J3", lanes: 3, speed_limit: 40, length_km: 0.35 },
+  { id: "R7", name: "HMT Rd E", from_junction: "J4", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.35 },
+  { id: "R8", name: "HMT Rd W", from_junction: "J7", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.35 },
+  { id: "R9", name: "NTR Nagar Rd E", from_junction: "J7", to_junction: "J9", lanes: 2, speed_limit: 30, length_km: 0.33 },
+  { id: "R10", name: "NTR Nagar Rd W", from_junction: "J9", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.33 },
+  // North row: J5 — J8 — J10
+  { id: "R11", name: "KPHB Main Rd E", from_junction: "J5", to_junction: "J8", lanes: 4, speed_limit: 50, length_km: 0.45 },
+  { id: "R12", name: "KPHB Main Rd W", from_junction: "J8", to_junction: "J5", lanes: 4, speed_limit: 50, length_km: 0.45 },
+  { id: "R13", name: "Sathavahana Rd E", from_junction: "J8", to_junction: "J10", lanes: 3, speed_limit: 40, length_km: 0.36 },
+  { id: "R14", name: "Sathavahana Rd W", from_junction: "J10", to_junction: "J8", lanes: 3, speed_limit: 40, length_km: 0.36 },
+  // === North-South roads (following KPHB colony main roads) ===
+  // West column: J1 — J3 — J5
+  { id: "R15", name: "JNTU-HMT Hills Rd N", from_junction: "J1", to_junction: "J3", lanes: 2, speed_limit: 30, length_km: 0.29 },
+  { id: "R16", name: "HMT Hills-JNTU Rd S", from_junction: "J3", to_junction: "J1", lanes: 2, speed_limit: 30, length_km: 0.29 },
+  { id: "R17", name: "HMT Hills-Y Jn Rd N", from_junction: "J3", to_junction: "J5", lanes: 3, speed_limit: 40, length_km: 0.17 },
+  { id: "R18", name: "Y Jn-HMT Hills Rd S", from_junction: "J5", to_junction: "J3", lanes: 3, speed_limit: 40, length_km: 0.17 },
+  // Center column: J2 — J4 — J8
+  { id: "R19", name: "Road No 2 N", from_junction: "J2", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.29 },
+  { id: "R20", name: "Road No 2 S", from_junction: "J4", to_junction: "J2", lanes: 2, speed_limit: 30, length_km: 0.29 },
+  { id: "R21", name: "Road No 2 Upper N", from_junction: "J4", to_junction: "J8", lanes: 2, speed_limit: 30, length_km: 0.24 },
+  { id: "R22", name: "Road No 2 Upper S", from_junction: "J8", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.24 },
+  // East column: J6 — J7 — J10
+  { id: "R23", name: "Pragathi Rd N", from_junction: "J6", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.30 },
+  { id: "R24", name: "Pragathi Rd S", from_junction: "J7", to_junction: "J6", lanes: 2, speed_limit: 30, length_km: 0.30 },
+  { id: "R25", name: "Allwyn Access Rd N", from_junction: "J7", to_junction: "J10", lanes: 2, speed_limit: 30, length_km: 0.23 },
+  { id: "R26", name: "Allwyn Access Rd S", from_junction: "J10", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.23 },
+  // === Diagonal / connector roads ===
+  { id: "R27", name: "JNTU Flyover Rd NE", from_junction: "J1", to_junction: "J4", lanes: 3, speed_limit: 40, length_km: 0.46 },
+  { id: "R28", name: "JNTU Flyover Rd SW", from_junction: "J4", to_junction: "J1", lanes: 3, speed_limit: 40, length_km: 0.46 },
+  { id: "R29", name: "Colony Diagonal NE", from_junction: "J4", to_junction: "J10", lanes: 2, speed_limit: 30, length_km: 0.42 },
+  { id: "R30", name: "Colony Diagonal SW", from_junction: "J10", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.42 },
+  { id: "R31", name: "High Tension Line Rd E", from_junction: "J5", to_junction: "J10", lanes: 2, speed_limit: 30, length_km: 0.81 },
+  { id: "R32", name: "High Tension Line Rd W", from_junction: "J10", to_junction: "J5", lanes: 2, speed_limit: 30, length_km: 0.81 },
+  // One-way service road
+  { id: "R33", name: "Metro Service Rd", from_junction: "J9", to_junction: "J10", lanes: 2, speed_limit: 25, length_km: 0.33 },
 ];
 
 export const mockSignalPhases: MapData["signal_phases"] = mockJunctions.flatMap((j) => [
@@ -166,16 +168,16 @@ export function getMockNetworkStatus(): NetworkStatus {
 
 // Simple path finding for mock - using adjacency
 const adjacency: Record<string, string[]> = {
-  J1: ["J2", "J3", "J4", "J5", "J7", "J8"],
-  J2: ["J1", "J3", "J9"],
-  J3: ["J1", "J2", "J4"],
-  J4: ["J1", "J3", "J5", "J6"],
-  J5: ["J1", "J4", "J6", "J7"],
-  J6: ["J4", "J5"],
-  J7: ["J1", "J5", "J8"],
-  J8: ["J1", "J7", "J9", "J10"],
-  J9: ["J2", "J8", "J10"],
-  J10: ["J8", "J9"],
+  J1: ["J2", "J3", "J4"],
+  J2: ["J1", "J4", "J6"],
+  J3: ["J1", "J4", "J5"],
+  J4: ["J1", "J2", "J3", "J7", "J8", "J10"],
+  J5: ["J3", "J8", "J10"],
+  J6: ["J2", "J7"],
+  J7: ["J4", "J6", "J9", "J10"],
+  J8: ["J4", "J5", "J10"],
+  J9: ["J7", "J10"],
+  J10: ["J4", "J5", "J7", "J8", "J9"],
 };
 
 function bfs(start: string, end: string): string[] | null {

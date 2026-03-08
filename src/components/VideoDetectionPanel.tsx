@@ -16,16 +16,16 @@ import { mockJunctions } from "@/lib/mock-data";
 
 // Junction camera options
 const JUNCTION_CAMERAS = [
-  { id: "J1", name: "Kukatpally Y Junction" },
-  { id: "J2", name: "KPHB Phase 1" },
-  { id: "J3", name: "KPHB Phase 3" },
-  { id: "J4", name: "Vasanth Nagar" },
-  { id: "J5", name: "Pragathi Colony" },
-  { id: "J6", name: "MIG Colony" },
-  { id: "J7", name: "Allwyn Colony" },
-  { id: "J8", name: "Municipal Office" },
-  { id: "J9", name: "Balaji Nagar" },
-  { id: "J10", name: "Metro Station" },
+  { id: "J1", name: "JNTU Main Gate" },
+  { id: "J2", name: "GHMC Park Signal" },
+  { id: "J3", name: "HMT Hills Junction" },
+  { id: "J4", name: "Road No 1 Circle" },
+  { id: "J5", name: "Kukatpally Y Junction" },
+  { id: "J6", name: "Apollo Pharmacy Jn" },
+  { id: "J7", name: "KPHB Bus Stop" },
+  { id: "J8", name: "Sathavahana Nagar Gate" },
+  { id: "J9", name: "NTR Nagar Junction" },
+  { id: "J10", name: "Allwyn Colony X Roads" },
 ] as const;
 
 const DENSITY_COLORS: Record<DensityLevel, string> = {
@@ -106,7 +106,7 @@ export function VideoDetectionPanel() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
-      center: [17.4935, 78.3990],
+      center: [17.4945, 78.3990],
       zoom: 16,
       zoomControl: false,
     });
