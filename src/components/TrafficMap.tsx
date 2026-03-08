@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Junction, Road, DensityLevel } from "@/lib/types";
+import { mockJunctions } from "@/lib/mock-data";
 
 const DENSITY_COLORS: Record<DensityLevel, string> = {
   LOW: "#22c55e",
@@ -22,9 +23,12 @@ interface TrafficMapProps {
   roads: Road[];
   flyTo: [number, number] | null;
   onJunctionClick: (id: string) => void;
+  routePath?: string[];
+  sourceJunction?: string | null;
+  destinationJunction?: string | null;
 }
 
-export function TrafficMap({ junctions, roads, flyTo, onJunctionClick }: TrafficMapProps) {
+export function TrafficMap({ junctions, roads, flyTo, onJunctionClick, routePath, sourceJunction, destinationJunction }: TrafficMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
@@ -64,11 +68,21 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick }: Traffic
     const junctionMap = new Map<string, Junction>();
     junctions.forEach((j) => junctionMap.set(j.id, j));
 
+    // Build route road set for highlighting
+    const routeRoadSet = new Set<string>();
+    if (routePath && routePath.length > 1) {
+      for (let i = 0; i < routePath.length - 1; i++) {
+        routeRoadSet.add(`${routePath[i]}-${routePath[i + 1]}`);
+      }
+    }
+
     // Draw roads
     roads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
+
+      const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
 
       const line = L.polyline(
         [
@@ -76,10 +90,10 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick }: Traffic
           [to.lat, to.lng],
         ],
         {
-          color: "hsl(210, 60%, 50%)",
-          weight: Math.max(2, road.lanes),
-          opacity: 0.6,
-          dashArray: road.lanes <= 2 ? "6 4" : undefined,
+          color: isOnRoute ? "#22c55e" : "hsl(210, 60%, 50%)",
+          weight: isOnRoute ? 6 : Math.max(2, road.lanes),
+          opacity: isOnRoute ? 1 : 0.6,
+          dashArray: !isOnRoute && road.lanes <= 2 ? "6 4" : undefined,
         }
       );
       line.bindPopup(
@@ -90,13 +104,20 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick }: Traffic
 
     // Draw junctions
     junctions.forEach((j) => {
-      const color = DENSITY_COLORS[j.density || "LOW"];
+      const isSource = sourceJunction === j.id;
+      const isDest = destinationJunction === j.id;
+      const isOnRoute = routePath?.includes(j.id);
+
+      const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : DENSITY_COLORS[j.density || "LOW"];
+      const radius = isSource || isDest ? 14 : isOnRoute ? 13 : 12;
+      const weight = isSource || isDest ? 3 : 2;
+
       const marker = L.circleMarker([j.lat, j.lng], {
-        radius: 12,
+        radius,
         fillColor: color,
         fillOpacity: 0.9,
         color: "#fff",
-        weight: 2,
+        weight,
       });
       marker.bindPopup(
         `<div class="text-sm"><strong>${j.name}</strong> (${j.id})<br/>Type: ${j.type}<br/>Density: ${j.density || "LOW"}</div>`
@@ -104,7 +125,7 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick }: Traffic
       marker.on("click", () => onJunctionClick(j.id));
       layers.addLayer(marker);
     });
-  }, [junctions, roads, onJunctionClick]);
+  }, [junctions, roads, onJunctionClick, routePath, sourceJunction, destinationJunction]);
 
   // Fly to
   useEffect(() => {
