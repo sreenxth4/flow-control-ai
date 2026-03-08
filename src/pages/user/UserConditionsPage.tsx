@@ -75,9 +75,9 @@ const UserConditionsPage = () => {
                       <p className="text-sm font-medium text-foreground">
                         {mj.id} — {mj.name}
                       </p>
-                      {hasData ? (
+                      {hasData && live ? (
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          Traffic data available
+                          {live.vehicle_count ?? "?"} vehicles ({live.total_pcu ?? "?"} PCU)
                         </p>
                       ) : (
                         <p className="mt-0.5 text-xs text-muted-foreground">Awaiting analysis</p>
