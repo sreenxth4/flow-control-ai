@@ -29,16 +29,16 @@ const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: Veh
 };
 
 export const mockJunctions = [
-  { id: "J1", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4935, lng: 78.3990 },
-  { id: "J2", name: "KPHB Colony", type: "intersection", lat: 17.4934, lng: 78.3943 },
-  { id: "J3", name: "Balanagar", type: "intersection", lat: 17.4966, lng: 78.3677 },
-  { id: "J4", name: "JNTU College", type: "intersection", lat: 17.4942, lng: 78.3905 },
-  { id: "J5", name: "Moosapet", type: "intersection", lat: 17.4863, lng: 78.4070 },
-  { id: "J6", name: "Miyapur", type: "intersection", lat: 17.4969, lng: 78.3575 },
-  { id: "J7", name: "Hitech City", type: "intersection", lat: 17.4458, lng: 78.3774 },
-  { id: "J8", name: "Bharath Nagar", type: "intersection", lat: 17.4815, lng: 78.4135 },
-  { id: "J9", name: "Erragadda", type: "intersection", lat: 17.4765, lng: 78.4245 },
-  { id: "J10", name: "ESI Hospital", type: "intersection", lat: 17.4687, lng: 78.4340 },
+  { id: "J1", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4940, lng: 78.3990 },
+  { id: "J2", name: "KPHB Phase 1", type: "intersection", lat: 17.4940, lng: 78.3960 },
+  { id: "J3", name: "KPHB Phase 3", type: "intersection", lat: 17.4960, lng: 78.3960 },
+  { id: "J4", name: "Vasanth Nagar", type: "intersection", lat: 17.4960, lng: 78.3990 },
+  { id: "J5", name: "Pragathi Colony", type: "intersection", lat: 17.4940, lng: 78.4020 },
+  { id: "J6", name: "MIG Colony", type: "intersection", lat: 17.4960, lng: 78.4020 },
+  { id: "J7", name: "Allwyn Colony", type: "intersection", lat: 17.4920, lng: 78.4020 },
+  { id: "J8", name: "Municipal Office", type: "intersection", lat: 17.4920, lng: 78.3990 },
+  { id: "J9", name: "Balaji Nagar", type: "intersection", lat: 17.4920, lng: 78.3960 },
+  { id: "J10", name: "Metro Station", type: "intersection", lat: 17.4900, lng: 78.3990 },
 ];
 
 export const mockRoads = [
