@@ -1,77 +1,92 @@
+import { useEffect, useRef, useCallback } from "react";
 import { useMapData } from "@/hooks/use-map-data";
-import { TrafficMap } from "@/components/TrafficMap";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { MockDataBanner } from "@/components/MockDataBanner";
 import { isUsingMockData } from "@/lib/api";
-import { MapPin, Activity } from "lucide-react";
-import { DensityBadge } from "@/components/DensityBadge";
-import { useState, useCallback } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import type { DensityLevel } from "@/lib/types";
+
+const DENSITY_COLORS: Record<DensityLevel, string> = {
+  LOW: "#22c55e",
+  MEDIUM: "#eab308",
+  HIGH: "#ef4444",
+};
 
 const UserMapPage = () => {
   const { data } = useMapData();
-  const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layersRef = useRef<L.LayerGroup | null>(null);
 
-  const junctions = data?.junctions || [];
+  // Init map
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [28.6139, 77.2090],
+      zoom: 16,
+      zoomControl: false,
+    });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    mapRef.current = map;
+    layersRef.current = L.layerGroup().addTo(map);
+    return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
+  }, []);
 
-  const handleJunctionClick = useCallback((id: string) => {
-    const j = junctions.find((j) => j.id === id);
-    if (j) {
-      setFlyTo([j.lat, j.lng]);
-    }
-  }, [junctions]);
+  // Update markers + roads
+  useEffect(() => {
+    const layers = layersRef.current;
+    if (!layers || !data) return;
+    layers.clearLayers();
+
+    const junctionMap = new Map(data.junctions.map((j) => [j.id, j]));
+
+    // Roads
+    data.roads.forEach((road) => {
+      const from = junctionMap.get(road.from_junction);
+      const to = junctionMap.get(road.to_junction);
+      if (!from || !to) return;
+      const line = L.polyline(
+        [[from.lat, from.lng], [to.lat, to.lng]],
+        {
+          color: "hsl(210, 60%, 50%)",
+          weight: Math.max(2, road.lanes),
+          opacity: 0.5,
+          dashArray: road.lanes <= 2 ? "6 4" : undefined,
+        }
+      );
+      line.bindPopup(`<div class="text-sm"><strong>${road.name}</strong><br/>Lanes: ${road.lanes} · ${road.speed_limit} km/h · ${road.length_km} km</div>`);
+      layers.addLayer(line);
+    });
+
+    // Junctions
+    data.junctions.forEach((j) => {
+      const color = j.density ? DENSITY_COLORS[j.density] : "#6b7280";
+      const marker = L.circleMarker([j.lat, j.lng], {
+        radius: 11,
+        fillColor: color,
+        fillOpacity: 0.85,
+        color: "#fff",
+        weight: 2,
+      });
+      const densityLabel = j.density || "No data";
+      marker.bindPopup(
+        `<div style="min-width:140px">
+          <strong>${j.name}</strong> <span style="color:#888">(${j.id})</span><br/>
+          <span style="color:#888">Type:</span> ${j.type}<br/>
+          <span style="color:#888">Density:</span> <strong>${densityLabel}</strong>
+        </div>`
+      );
+      layers.addLayer(marker);
+    });
+  }, [data]);
 
   return (
-    <div className="relative flex h-full w-full">
+    <div className="relative h-full w-full">
       {isUsingMockData() && <MockDataBanner />}
-
-      {/* Sidebar */}
-      <div className="relative z-10 w-72 flex-shrink-0 border-r border-border bg-card">
-        <ScrollArea className="h-full">
-          <div className="p-4">
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-foreground">Live Traffic</h2>
-              <p className="text-sm text-muted-foreground">Real-time traffic conditions</p>
-            </div>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Activity className="h-4 w-4 text-primary" />
-                  Junction Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {junctions.map((j) => (
-                  <button
-                    key={j.id}
-                    onClick={() => handleJunctionClick(j.id)}
-                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted"
-                  >
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{j.name}</span>
-                    </div>
-                    <DensityBadge level={j.density} />
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </ScrollArea>
-      </div>
-
-      {/* Map */}
-      <div className="flex-1">
-        {data && (
-          <TrafficMap
-            junctions={data.junctions}
-            roads={data.roads}
-            flyTo={flyTo}
-            onJunctionClick={handleJunctionClick}
-          />
-        )}
-      </div>
+      <div ref={containerRef} className="h-full w-full" />
     </div>
   );
 };
