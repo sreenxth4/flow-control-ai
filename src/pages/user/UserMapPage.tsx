@@ -72,11 +72,14 @@ const UserMapPage = () => {
         weight: 2,
       });
       const densityLabel = j.density || "No data";
+      const pcuLine = j.vehicle_count != null && j.total_pcu != null
+        ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)`
+        : "";
       marker.bindPopup(
         `<div style="min-width:140px">
           <strong>${j.name}</strong> <span style="color:#888">(${j.id})</span><br/>
           <span style="color:#888">Type:</span> ${j.type}<br/>
-          <span style="color:#888">Density:</span> <strong>${densityLabel}</strong>
+          <span style="color:#888">Density:</span> <strong>${densityLabel}</strong>${pcuLine}
         </div>`
       );
       layers.addLayer(marker);
