@@ -34,6 +34,7 @@ const App = () => (
             {/* Admin - protected */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDetectionPage />} />
+              <Route path="upload" element={<AdminDetectionPage />} />
               <Route path="dashboard" element={<AdminDashboardPage />} />
             </Route>
 
