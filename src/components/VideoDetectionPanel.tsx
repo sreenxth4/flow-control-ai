@@ -54,9 +54,9 @@ interface JunctionStatus {
   pcu: number;
 }
 
-// PCU weights
+// PCU weights (Indian Roads Congress standard)
 const PCU_WEIGHTS: Record<string, number> = {
-  cars: 1, bikes: 0.5, autos: 0.75, buses: 3, trucks: 3.5, cycles: 0.2,
+  cars: 1.0, bikes: 0.5, autos: 1.0, buses: 3.0, trucks: 3.0, cycles: 0.3,
 };
 
 function computePCU(vehicles: Record<string, number>): number {

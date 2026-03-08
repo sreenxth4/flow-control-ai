@@ -1,7 +1,32 @@
-import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult } from "./types";
+import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult, VehicleDistribution } from "./types";
 
 const densities: DensityLevel[] = ["LOW", "MEDIUM", "HIGH"];
 const randomDensity = (): DensityLevel => densities[Math.floor(Math.random() * 3)];
+
+// PCU weights (Indian Roads Congress)
+const PCU_WEIGHTS = { car: 1.0, bike: 0.5, auto: 1.0, bus: 3.0, truck: 3.0, cycle: 0.3 };
+
+function computePCU(v: VehicleDistribution): number {
+  return Math.round((v.car * PCU_WEIGHTS.car + v.bike * PCU_WEIGHTS.bike + v.auto * PCU_WEIGHTS.auto + v.bus * PCU_WEIGHTS.bus + v.truck * PCU_WEIGHTS.truck + v.cycle * PCU_WEIGHTS.cycle) * 10) / 10;
+}
+
+function computeVehicleCount(v: VehicleDistribution): number {
+  return v.car + v.bike + v.auto + v.bus + v.truck + v.cycle;
+}
+
+// Fixed mock traffic data per junction
+const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: VehicleDistribution }> = {
+  J1:  { density: "MEDIUM", vehicles: { car: 5, bike: 10, auto: 2, bus: 1, truck: 0, cycle: 0 } },
+  J2:  { density: "LOW",    vehicles: { car: 4, bike: 3, auto: 1, bus: 0, truck: 0, cycle: 3 } },
+  J3:  { density: "HIGH",   vehicles: { car: 8, bike: 6, auto: 3, bus: 3, truck: 4, cycle: 0 } },
+  J4:  { density: "MEDIUM", vehicles: { car: 6, bike: 8, auto: 2, bus: 2, truck: 0, cycle: 1 } },
+  J5:  { density: "HIGH",   vehicles: { car: 10, bike: 12, auto: 4, bus: 2, truck: 3, cycle: 2 } },
+  J6:  { density: "LOW",    vehicles: { car: 3, bike: 5, auto: 0, bus: 0, truck: 0, cycle: 2 } },
+  J7:  { density: "MEDIUM", vehicles: { car: 7, bike: 9, auto: 3, bus: 1, truck: 1, cycle: 0 } },
+  J8:  { density: "LOW",    vehicles: { car: 2, bike: 4, auto: 1, bus: 0, truck: 0, cycle: 5 } },
+  J9:  { density: "HIGH",   vehicles: { car: 9, bike: 5, auto: 2, bus: 4, truck: 3, cycle: 1 } },
+  J10: { density: "MEDIUM", vehicles: { car: 6, bike: 7, auto: 2, bus: 1, truck: 1, cycle: 2 } },
+};
 
 export const mockJunctions = [
   { id: "J1", name: "Main Square", type: "intersection", lat: 28.6139, lng: 77.2090 },
@@ -72,7 +97,16 @@ export const mockSignalPhases: MapData["signal_phases"] = mockJunctions.flatMap(
 export function getMockMapData(): MapData {
   return {
     region_name: "New Delhi Traffic Region",
-    junctions: mockJunctions.map((j) => ({ ...j, density: randomDensity() })),
+    junctions: mockJunctions.map((j) => {
+      const td = junctionTrafficData[j.id];
+      return {
+        ...j,
+        density: td.density,
+        vehicle_count: computeVehicleCount(td.vehicles),
+        total_pcu: computePCU(td.vehicles),
+        vehicle_type_distribution: td.vehicles,
+      };
+    }),
     roads: mockRoads,
     signal_phases: mockSignalPhases,
   };
@@ -81,8 +115,15 @@ export function getMockMapData(): MapData {
 export function getMockJunctionDetail(id: string): JunctionDetail | null {
   const junction = mockJunctions.find((j) => j.id === id);
   if (!junction) return null;
+  const td = junctionTrafficData[id];
   return {
-    junction: { ...junction, density: randomDensity() },
+    junction: {
+      ...junction,
+      density: td.density,
+      vehicle_count: computeVehicleCount(td.vehicles),
+      total_pcu: computePCU(td.vehicles),
+      vehicle_type_distribution: td.vehicles,
+    },
     incoming_roads: mockRoads.filter((r) => r.to_junction === id),
     outgoing_roads: mockRoads.filter((r) => r.from_junction === id),
     signal_phases: mockSignalPhases.filter((s) => s.junction_id === id),

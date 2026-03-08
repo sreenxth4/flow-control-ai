@@ -75,7 +75,8 @@ export function TrafficDashboard() {
         color: "#374151",
         weight: 1.5,
       });
-      marker.bindPopup(`<div class="text-sm"><strong>${j.name}</strong> (${j.id})<br/>Density: ${j.density || "No data"}</div>`);
+      const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
+      marker.bindPopup(`<div class="text-sm"><strong>${j.name}</strong> (${j.id})<br/>Density: ${j.density || "No data"}${pcuInfo}</div>`);
       layers.addLayer(marker);
     });
   }, [mapData]);
