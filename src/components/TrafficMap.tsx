@@ -38,7 +38,7 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick, routePath
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [17.4935, 78.3990],
+      center: [17.4945, 78.3990],
       zoom: 16,
       zoomControl: false,
     });

@@ -106,7 +106,7 @@ export function VideoDetectionPanel() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
-      center: [17.4935, 78.3990],
+      center: [17.4945, 78.3990],
       zoom: 16,
       zoomControl: false,
     });
