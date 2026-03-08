@@ -1,5 +1,14 @@
 export type DensityLevel = "LOW" | "MEDIUM" | "HIGH";
 
+export interface VehicleDistribution {
+  car: number;
+  bike: number;
+  auto: number;
+  bus: number;
+  truck: number;
+  cycle: number;
+}
+
 export interface Junction {
   id: string;
   name: string;
@@ -7,6 +16,9 @@ export interface Junction {
   lat: number;
   lng: number;
   density?: DensityLevel;
+  vehicle_count?: number;
+  total_pcu?: number;
+  vehicle_type_distribution?: VehicleDistribution;
 }
 
 export interface Road {

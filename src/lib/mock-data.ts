@@ -115,8 +115,15 @@ export function getMockMapData(): MapData {
 export function getMockJunctionDetail(id: string): JunctionDetail | null {
   const junction = mockJunctions.find((j) => j.id === id);
   if (!junction) return null;
+  const td = junctionTrafficData[id];
   return {
-    junction: { ...junction, density: randomDensity() },
+    junction: {
+      ...junction,
+      density: td.density,
+      vehicle_count: computeVehicleCount(td.vehicles),
+      total_pcu: computePCU(td.vehicles),
+      vehicle_type_distribution: td.vehicles,
+    },
     incoming_roads: mockRoads.filter((r) => r.to_junction === id),
     outgoing_roads: mockRoads.filter((r) => r.from_junction === id),
     signal_phases: mockSignalPhases.filter((s) => s.junction_id === id),
