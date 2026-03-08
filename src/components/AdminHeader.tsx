@@ -1,4 +1,4 @@
-import { Map, Video, BarChart3, Zap, Sun, Moon, LogOut } from "lucide-react";
+import { Video, BarChart3, Sun, Moon, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useTheme } from "@/hooks/use-theme";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -6,9 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { to: "/admin", label: "Map", icon: Map },
-  { to: "/admin/detection", label: "Detection", icon: Video },
-  { to: "/admin/optimize", label: "Signals", icon: Zap },
+  { to: "/admin", label: "Upload & Analyze", icon: Video },
   { to: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
 ];
 
@@ -23,7 +21,7 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4">
+    <header className="flex h-12 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4">
       <div className="flex items-center gap-6">
         <span className="text-sm font-bold tracking-tight text-foreground">
           🚦 AI Traffic <span className="ml-1 rounded bg-accent/15 px-1.5 py-0.5 text-xs font-semibold text-accent">Admin</span>
