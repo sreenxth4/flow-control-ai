@@ -99,7 +99,8 @@ const UserRoutePage = () => {
         color: "#fff",
         weight: isSource || isDest ? 3 : 1.5,
       });
-      marker.bindPopup(`<div style="min-width:120px"><strong>${j.name}</strong> (${j.id})<br/>Density: ${j.density || "N/A"}</div>`);
+      const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
+      marker.bindPopup(`<div style="min-width:120px"><strong>${j.name}</strong> (${j.id})<br/>Density: ${j.density || "N/A"}${pcuInfo}</div>`);
       layers.addLayer(marker);
     });
   }, [data, routeResult, source, destination]);
