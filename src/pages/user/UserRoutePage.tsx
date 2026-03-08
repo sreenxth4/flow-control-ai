@@ -40,8 +40,8 @@ const UserRoutePage = () => {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
-      center: [17.4850, 78.4050],
-      zoom: 13,
+      center: [17.4800, 78.3950],
+      zoom: 12,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
