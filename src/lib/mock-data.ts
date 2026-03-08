@@ -29,16 +29,16 @@ const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: Veh
 };
 
 export const mockJunctions = [
-  { id: "J1", name: "Main Square", type: "intersection", lat: 28.6139, lng: 77.2090 },
-  { id: "J2", name: "Railway Crossing", type: "crossing", lat: 28.6150, lng: 77.2100 },
-  { id: "J3", name: "Hospital Junction", type: "intersection", lat: 28.6120, lng: 77.2080 },
-  { id: "J4", name: "Bus Terminal", type: "terminal", lat: 28.6160, lng: 77.2070 },
-  { id: "J5", name: "Market Circle", type: "roundabout", lat: 28.6110, lng: 77.2100 },
-  { id: "J6", name: "University Gate", type: "gate", lat: 28.6172, lng: 77.2090 },
-  { id: "J7", name: "Tech Park", type: "intersection", lat: 28.6145, lng: 77.2125 },
-  { id: "J8", name: "River Bridge", type: "bridge", lat: 28.6098, lng: 77.2085 },
-  { id: "J9", name: "Old Fort Gate", type: "gate", lat: 28.6130, lng: 77.2055 },
-  { id: "J10", name: "Stadium Junction", type: "intersection", lat: 28.6178, lng: 77.2115 },
+  { id: "J1", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4947, lng: 78.3996 },
+  { id: "J2", name: "KPHB Colony", type: "intersection", lat: 17.4932, lng: 78.3912 },
+  { id: "J3", name: "Balanagar Crossroads", type: "intersection", lat: 17.4835, lng: 78.4425 },
+  { id: "J4", name: "JNTU Junction", type: "intersection", lat: 17.4965, lng: 78.3875 },
+  { id: "J5", name: "Moosapet X Roads", type: "intersection", lat: 17.4685, lng: 78.4275 },
+  { id: "J6", name: "Allwyn Colony", type: "intersection", lat: 17.4978, lng: 78.4050 },
+  { id: "J7", name: "Hitech City Signal", type: "intersection", lat: 17.4486, lng: 78.3808 },
+  { id: "J8", name: "Bharath Nagar", type: "intersection", lat: 17.4780, lng: 78.4120 },
+  { id: "J9", name: "MIG Colony Gate", type: "gate", lat: 17.4890, lng: 78.4080 },
+  { id: "J10", name: "Petbasheerabad", type: "intersection", lat: 17.5030, lng: 78.4180 },
 ];
 
 export const mockRoads = [
