@@ -29,16 +29,16 @@ const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: Veh
 };
 
 export const mockJunctions = [
-  { id: "J1", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4940, lng: 78.3990 },
-  { id: "J2", name: "KPHB Phase 1", type: "intersection", lat: 17.4940, lng: 78.3960 },
-  { id: "J3", name: "KPHB Phase 3", type: "intersection", lat: 17.4960, lng: 78.3960 },
-  { id: "J4", name: "Vasanth Nagar", type: "intersection", lat: 17.4960, lng: 78.3990 },
-  { id: "J5", name: "Pragathi Colony", type: "intersection", lat: 17.4940, lng: 78.4020 },
-  { id: "J6", name: "MIG Colony", type: "intersection", lat: 17.4960, lng: 78.4020 },
-  { id: "J7", name: "Allwyn Colony", type: "intersection", lat: 17.4920, lng: 78.4020 },
-  { id: "J8", name: "Municipal Office", type: "intersection", lat: 17.4920, lng: 78.3990 },
-  { id: "J9", name: "Balaji Nagar", type: "intersection", lat: 17.4920, lng: 78.3960 },
-  { id: "J10", name: "Metro Station", type: "intersection", lat: 17.4900, lng: 78.3990 },
+  { id: "J1", name: "JNTU Main Gate", type: "intersection", lat: 17.4922, lng: 78.3955 },
+  { id: "J2", name: "GHMC Park Signal", type: "intersection", lat: 17.4920, lng: 78.3988 },
+  { id: "J3", name: "HMT Hills Junction", type: "intersection", lat: 17.4948, lng: 78.3958 },
+  { id: "J4", name: "Road No 1 Circle", type: "intersection", lat: 17.4946, lng: 78.3990 },
+  { id: "J5", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4963, lng: 78.3951 },
+  { id: "J6", name: "Apollo Pharmacy Jn", type: "intersection", lat: 17.4918, lng: 78.4018 },
+  { id: "J7", name: "KPHB Bus Stop", type: "intersection", lat: 17.4945, lng: 78.4022 },
+  { id: "J8", name: "Sathavahana Nagar Gate", type: "intersection", lat: 17.4968, lng: 78.3992 },
+  { id: "J9", name: "NTR Nagar Junction", type: "intersection", lat: 17.4950, lng: 78.4052 },
+  { id: "J10", name: "Allwyn Colony X Roads", type: "intersection", lat: 17.4966, lng: 78.4025 },
 ];
 
 export const mockRoads = [
