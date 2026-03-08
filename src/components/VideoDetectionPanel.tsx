@@ -300,11 +300,6 @@ export function VideoDetectionPanel() {
             </div>
           </div>
 
-          {/* FPS Slider */}
-          <div className="space-y-1.5 opacity-50 pointer-events-none">
-            <Label className="text-xs font-medium">Target FPS: {fps}</Label>
-            <Slider value={[fps]} onValueChange={([v]) => setFps(v)} min={1} max={30} step={1} disabled />
-          </div>
 
           {/* Submit */}
           <Button onClick={handleSubmit} disabled={loading || !file || !selectedJunction} className="w-full">
