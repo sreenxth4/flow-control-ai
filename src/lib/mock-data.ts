@@ -158,16 +158,16 @@ export function getMockNetworkStatus(): NetworkStatus {
 
 // Simple path finding for mock - using adjacency
 const adjacency: Record<string, string[]> = {
-  J1: ["J2", "J3", "J4", "J7", "J9"],
-  J2: ["J1", "J6", "J7", "J10"],
-  J3: ["J1", "J5", "J9"],
-  J4: ["J1", "J6", "J9"],
-  J5: ["J3", "J7", "J8"],
-  J6: ["J2", "J4", "J10"],
-  J7: ["J1", "J2", "J5", "J10"],
-  J8: ["J5", "J9"],
-  J9: ["J1", "J3", "J4", "J8"],
-  J10: ["J2", "J6", "J7"],
+  J1: ["J2", "J4", "J5", "J7", "J9"],
+  J2: ["J1", "J3", "J4"],
+  J3: ["J2", "J5", "J6", "J8"],
+  J4: ["J1", "J2", "J6"],
+  J5: ["J1", "J3", "J8", "J10"],
+  J6: ["J3", "J4", "J7"],
+  J7: ["J1", "J6", "J10"],
+  J8: ["J3", "J5", "J9"],
+  J9: ["J1", "J8", "J10"],
+  J10: ["J5", "J7", "J9"],
 };
 
 function bfs(start: string, end: string): string[] | null {
