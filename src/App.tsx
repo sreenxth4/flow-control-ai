@@ -35,9 +35,7 @@ const App = () => (
 
             {/* Admin - protected */}
             <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminMapPage />} />
-              <Route path="detection" element={<AdminDetectionPage />} />
-              <Route path="optimize" element={<AdminOptimizePage />} />
+              <Route index element={<AdminDetectionPage />} />
               <Route path="dashboard" element={<AdminDashboardPage />} />
             </Route>
 
