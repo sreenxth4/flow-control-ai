@@ -28,7 +28,7 @@ const LandingPage = () => {
       <div className="mb-10 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-foreground">🚦 AI Traffic Management</h1>
         <p className="mt-2 text-lg text-muted-foreground">
-          Intelligent traffic monitoring and routing for New Delhi
+          Intelligent traffic monitoring and routing for Kukatpally, Hyderabad
         </p>
       </div>
 

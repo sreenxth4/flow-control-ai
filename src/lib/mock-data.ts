@@ -96,7 +96,7 @@ export const mockSignalPhases: MapData["signal_phases"] = mockJunctions.flatMap(
 
 export function getMockMapData(): MapData {
   return {
-    region_name: "New Delhi Traffic Region",
+    region_name: "Kukatpally Traffic Region",
     junctions: mockJunctions.map((j) => {
       const td = junctionTrafficData[j.id];
       return {
