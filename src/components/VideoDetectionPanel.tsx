@@ -16,16 +16,16 @@ import { mockJunctions } from "@/lib/mock-data";
 
 // Junction camera options
 const JUNCTION_CAMERAS = [
-  { id: "J1", name: "Main Square" },
-  { id: "J2", name: "Railway Crossing" },
-  { id: "J3", name: "Hospital Junction" },
-  { id: "J4", name: "Bus Terminal" },
-  { id: "J5", name: "Market Circle" },
-  { id: "J6", name: "University Gate" },
-  { id: "J7", name: "Tech Park" },
-  { id: "J8", name: "River Bridge" },
-  { id: "J9", name: "Old Fort Gate" },
-  { id: "J10", name: "Stadium Junction" },
+  { id: "J1", name: "Kukatpally Y Junction" },
+  { id: "J2", name: "KPHB Colony" },
+  { id: "J3", name: "Balanagar Crossroads" },
+  { id: "J4", name: "JNTU Junction" },
+  { id: "J5", name: "Moosapet X Roads" },
+  { id: "J6", name: "Allwyn Colony" },
+  { id: "J7", name: "Hitech City Signal" },
+  { id: "J8", name: "Bharath Nagar" },
+  { id: "J9", name: "MIG Colony Gate" },
+  { id: "J10", name: "Petbasheerabad" },
 ] as const;
 
 const DENSITY_COLORS: Record<DensityLevel, string> = {
@@ -106,8 +106,8 @@ export function VideoDetectionPanel() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
-      center: [28.6139, 77.209],
-      zoom: 15,
+      center: [17.4850, 78.4050],
+      zoom: 13,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
