@@ -10,9 +10,7 @@ import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 
 // Admin pages
-import AdminMapPage from "./pages/admin/AdminMapPage";
 import AdminDetectionPage from "./pages/admin/AdminDetectionPage";
-import AdminOptimizePage from "./pages/admin/AdminOptimizePage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 
 // User pages
