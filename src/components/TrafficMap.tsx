@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -10,68 +10,34 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   HIGH: "#ef4444",
 };
 
-function FlyTo({ center, zoom }: { center: [number, number] | null; zoom?: number }) {
+function FlyTo({ center }: { center: [number, number] | null }) {
   const map = useMap();
   useEffect(() => {
-    if (center) map.flyTo(center, zoom || 17, { duration: 0.8 });
-  }, [center, zoom, map]);
+    if (center) map.flyTo(center, 17, { duration: 0.8 });
+  }, [center, map]);
   return null;
 }
 
-interface TrafficMapProps {
-  junctions: Junction[];
-  roads: Road[];
-  flyTo: [number, number] | null;
-  onJunctionClick: (id: string) => void;
-  onMapClick?: (lat: number, lng: number) => void;
-}
-
-export function TrafficMap({ junctions, roads, flyTo, onJunctionClick, onMapClick }: TrafficMapProps) {
-  const junctionMap = useRef<Map<string, Junction>>(new Map());
-
-  useEffect(() => {
+function RoadLines({ roads, junctions }: { roads: Road[]; junctions: Junction[] }) {
+  const junctionMap = useMemo(() => {
     const m = new Map<string, Junction>();
     junctions.forEach((j) => m.set(j.id, j));
-    junctionMap.current = m;
+    return m;
   }, [junctions]);
 
-  const getPos = (id: string): [number, number] | null => {
-    const j = junctionMap.current.get(id);
-    return j ? [j.lat, j.lng] : null;
-  };
-
-  // fix default icon
-  useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    });
-  }, []);
-
   return (
-    <MapContainer
-      center={[28.6139, 77.2090]}
-      zoom={16}
-      className="h-full w-full"
-      zoomControl={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <FlyTo center={flyTo} />
-
-      {/* Roads */}
+    <>
       {roads.map((road) => {
-        const from = getPos(road.from_junction);
-        const to = getPos(road.to_junction);
+        const from = junctionMap.get(road.from_junction);
+        const to = junctionMap.get(road.to_junction);
         if (!from || !to) return null;
         return (
           <Polyline
             key={road.id}
-            positions={[from, to]}
+            positions={[
+              [from.lat, from.lng],
+              [to.lat, to.lng],
+            ]}
             pathOptions={{
               color: "hsl(210, 60%, 50%)",
               weight: Math.max(2, road.lanes),
@@ -91,8 +57,19 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick, onMapClic
           </Polyline>
         );
       })}
+    </>
+  );
+}
 
-      {/* Junctions */}
+function JunctionMarkers({
+  junctions,
+  onJunctionClick,
+}: {
+  junctions: Junction[];
+  onJunctionClick: (id: string) => void;
+}) {
+  return (
+    <>
       {junctions.map((j) => {
         const color = DENSITY_COLORS[j.density || "LOW"];
         return (
@@ -122,6 +99,40 @@ export function TrafficMap({ junctions, roads, flyTo, onJunctionClick, onMapClic
           </CircleMarker>
         );
       })}
+    </>
+  );
+}
+
+// Fix default icon
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+interface TrafficMapProps {
+  junctions: Junction[];
+  roads: Road[];
+  flyTo: [number, number] | null;
+  onJunctionClick: (id: string) => void;
+}
+
+export function TrafficMap({ junctions, roads, flyTo, onJunctionClick }: TrafficMapProps) {
+  return (
+    <MapContainer
+      center={[28.6139, 77.209]}
+      zoom={16}
+      className="h-full w-full"
+      zoomControl={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <FlyTo center={flyTo} />
+      <RoadLines roads={roads} junctions={junctions} />
+      <JunctionMarkers junctions={junctions} onJunctionClick={onJunctionClick} />
     </MapContainer>
   );
 }
