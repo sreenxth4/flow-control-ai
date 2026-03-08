@@ -1,4 +1,4 @@
-import { Map, Video, BarChart3, Zap, Sun, Moon, LogOut } from "lucide-react";
+import { Video, BarChart3, Sun, Moon, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useTheme } from "@/hooks/use-theme";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
