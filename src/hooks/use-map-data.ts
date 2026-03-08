@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchMapData, fetchJunctionDetail, fetchPerformance, fetchHealth } from "@/lib/api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { fetchMapData, fetchJunctionDetail, fetchPerformance, fetchHealth, fetchNetworkStatus, findRoute, optimizeSignals } from "@/lib/api";
+import type { RouteRequest, SignalOptimizationRequest } from "@/lib/types";
 
 export function useMapData() {
   return useQuery({
@@ -34,5 +35,26 @@ export function useHealth() {
     queryFn: fetchHealth,
     refetchInterval: 30_000,
     staleTime: 15_000,
+  });
+}
+
+export function useNetworkStatus() {
+  return useQuery({
+    queryKey: ["network-status"],
+    queryFn: fetchNetworkStatus,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+}
+
+export function useFindRoute() {
+  return useMutation({
+    mutationFn: (request: RouteRequest) => findRoute(request),
+  });
+}
+
+export function useOptimizeSignals() {
+  return useMutation({
+    mutationFn: (request: SignalOptimizationRequest) => optimizeSignals(request),
   });
 }

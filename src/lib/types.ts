@@ -76,3 +76,66 @@ export interface HealthStatus {
   model: string;
   video_support: boolean;
 }
+
+// Signal Optimization
+export interface LaneAnalysis {
+  approach: string;
+  vehicle_count: number;
+  density: DensityLevel;
+}
+
+export interface SignalOptimizationRequest {
+  junction_id: string;
+  lane_analysis: LaneAnalysis[];
+}
+
+export interface SignalTiming {
+  phase: string;
+  green_duration: number;
+}
+
+export interface SignalOptimizationResult {
+  junction_id: string;
+  signal_timings: SignalTiming[];
+  cycle_time: number;
+  density_level: DensityLevel;
+  traffic_delay: number;
+  signal_wait: number;
+}
+
+// Network Status
+export interface JunctionCost {
+  junction_id: string;
+  traffic_delay: number;
+  signal_wait: number;
+}
+
+export interface NetworkStatus {
+  network: {
+    num_junctions: number;
+    num_roads: number;
+    junction_costs: JunctionCost[];
+    last_update: string;
+  };
+}
+
+// Route Finding
+export interface RouteRequest {
+  source: number;
+  destination: number;
+}
+
+export interface RouteSegment {
+  from_junction: string;
+  to_junction: string;
+  road_name: string;
+  cost: number;
+}
+
+export interface RouteResult {
+  success: boolean;
+  path: string[];
+  segments: RouteSegment[];
+  total_cost: number;
+  num_junctions: number;
+}
