@@ -132,7 +132,7 @@ export function TrafficDashboard() {
                         <TableBody>
                           {phases.map((sp) => (
                             <TableRow key={sp.phase_name}>
-                              <TableCell className="text-sm">{sp.phase_name.replace(junction.name + " ", "")}</TableCell>
+                              <TableCell className="text-sm">{(sp.phase_name ?? "").replace(junction.name + " ", "")}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
                                   {sp.green_roads.map((r) => (
