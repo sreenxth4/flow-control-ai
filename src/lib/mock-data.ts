@@ -1,7 +1,6 @@
 import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult, VehicleDistribution } from "./types";
 
 const densities: DensityLevel[] = ["LOW", "MEDIUM", "HIGH"];
-const randomDensity = (): DensityLevel => densities[Math.floor(Math.random() * 3)];
 
 // PCU weights (Indian Roads Congress)
 const PCU_WEIGHTS = { car: 1.0, bike: 0.5, auto: 1.0, bus: 3.0, truck: 3.0, cycle: 0.3 };
@@ -28,63 +27,59 @@ const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: Veh
   J10: { density: "MEDIUM", vehicles: { car: 6, bike: 7, auto: 2, bus: 1, truck: 1, cycle: 2 } },
 };
 
+// Kukatpally Zone Junctions (10 Total)
 export const mockJunctions = [
-  { id: "J1", name: "JNTU Main Gate", type: "intersection", lat: 17.4922, lng: 78.3955 },
-  { id: "J2", name: "GHMC Park Signal", type: "intersection", lat: 17.4920, lng: 78.3988 },
-  { id: "J3", name: "HMT Hills Junction", type: "intersection", lat: 17.4948, lng: 78.3958 },
-  { id: "J4", name: "Road No 1 Circle", type: "intersection", lat: 17.4946, lng: 78.3990 },
-  { id: "J5", name: "Kukatpally Y Junction", type: "intersection", lat: 17.4963, lng: 78.3951 },
-  { id: "J6", name: "Apollo Pharmacy Jn", type: "intersection", lat: 17.4918, lng: 78.4018 },
-  { id: "J7", name: "KPHB Bus Stop", type: "intersection", lat: 17.4945, lng: 78.4022 },
-  { id: "J8", name: "Sathavahana Nagar Gate", type: "intersection", lat: 17.4968, lng: 78.3992 },
-  { id: "J9", name: "NTR Nagar Junction", type: "intersection", lat: 17.4950, lng: 78.4052 },
-  { id: "J10", name: "Allwyn Colony X Roads", type: "intersection", lat: 17.4966, lng: 78.4025 },
+  { id: "J1", name: "Kukatpally Y Junction", type: "signalized", lat: 17.4947, lng: 78.3872 },
+  { id: "J2", name: "KPHB Colony Signal", type: "signalized", lat: 17.4935, lng: 78.3920 },
+  { id: "J3", name: "JNTU Gate Junction", type: "signalized", lat: 17.4898, lng: 78.3905 },
+  { id: "J4", name: "Kukatpally Bus Depot", type: "signalized", lat: 17.4962, lng: 78.3838 },
+  { id: "J5", name: "Balanagar X Roads", type: "signalized", lat: 17.4855, lng: 78.3830 },
+  { id: "J6", name: "Allwyn X Roads", type: "signalized", lat: 17.4978, lng: 78.3898 },
+  { id: "J7", name: "Moosapet X Roads", type: "signalized", lat: 17.4885, lng: 78.3785 },
+  { id: "J8", name: "Petbasheerabad Junction", type: "signalized", lat: 17.5018, lng: 78.3868 },
+  { id: "J9", name: "Pragathi Nagar Junction", type: "signalized", lat: 17.4990, lng: 78.3935 },
+  { id: "J10", name: "Bachupally Junction", type: "signalized", lat: 17.5042, lng: 78.3832 },
 ];
 
+// Kukatpally Zone Roads (34 Directed Roads)
 export const mockRoads = [
-  // === East-West roads (following KPHB colony cross-streets) ===
-  // South row: J1 — J2 — J6
-  { id: "R1", name: "Malaysian Twp Rd E", from_junction: "J1", to_junction: "J2", lanes: 3, speed_limit: 40, length_km: 0.36 },
-  { id: "R2", name: "Malaysian Twp Rd W", from_junction: "J2", to_junction: "J1", lanes: 3, speed_limit: 40, length_km: 0.36 },
-  { id: "R3", name: "Road No 5 E", from_junction: "J2", to_junction: "J6", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  { id: "R4", name: "Road No 5 W", from_junction: "J6", to_junction: "J2", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  // Middle row: J3 — J4 — J7 — J9
-  { id: "R5", name: "Road No 1 E", from_junction: "J3", to_junction: "J4", lanes: 3, speed_limit: 40, length_km: 0.35 },
-  { id: "R6", name: "Road No 1 W", from_junction: "J4", to_junction: "J3", lanes: 3, speed_limit: 40, length_km: 0.35 },
-  { id: "R7", name: "HMT Rd E", from_junction: "J4", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.35 },
-  { id: "R8", name: "HMT Rd W", from_junction: "J7", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.35 },
-  { id: "R9", name: "NTR Nagar Rd E", from_junction: "J7", to_junction: "J9", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  { id: "R10", name: "NTR Nagar Rd W", from_junction: "J9", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.33 },
-  // North row: J5 — J8 — J10
-  { id: "R11", name: "KPHB Main Rd E", from_junction: "J5", to_junction: "J8", lanes: 4, speed_limit: 50, length_km: 0.45 },
-  { id: "R12", name: "KPHB Main Rd W", from_junction: "J8", to_junction: "J5", lanes: 4, speed_limit: 50, length_km: 0.45 },
-  { id: "R13", name: "Sathavahana Rd E", from_junction: "J8", to_junction: "J10", lanes: 3, speed_limit: 40, length_km: 0.36 },
-  { id: "R14", name: "Sathavahana Rd W", from_junction: "J10", to_junction: "J8", lanes: 3, speed_limit: 40, length_km: 0.36 },
-  // === North-South roads (following KPHB colony main roads) ===
-  // West column: J1 — J3 — J5
-  { id: "R15", name: "JNTU-HMT Hills Rd N", from_junction: "J1", to_junction: "J3", lanes: 2, speed_limit: 30, length_km: 0.29 },
-  { id: "R16", name: "HMT Hills-JNTU Rd S", from_junction: "J3", to_junction: "J1", lanes: 2, speed_limit: 30, length_km: 0.29 },
-  { id: "R17", name: "HMT Hills-Y Jn Rd N", from_junction: "J3", to_junction: "J5", lanes: 3, speed_limit: 40, length_km: 0.17 },
-  { id: "R18", name: "Y Jn-HMT Hills Rd S", from_junction: "J5", to_junction: "J3", lanes: 3, speed_limit: 40, length_km: 0.17 },
-  // Center column: J2 — J4 — J8
-  { id: "R19", name: "Road No 2 N", from_junction: "J2", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.29 },
-  { id: "R20", name: "Road No 2 S", from_junction: "J4", to_junction: "J2", lanes: 2, speed_limit: 30, length_km: 0.29 },
-  { id: "R21", name: "Road No 2 Upper N", from_junction: "J4", to_junction: "J8", lanes: 2, speed_limit: 30, length_km: 0.24 },
-  { id: "R22", name: "Road No 2 Upper S", from_junction: "J8", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.24 },
-  // East column: J6 — J7 — J10
-  { id: "R23", name: "Pragathi Rd N", from_junction: "J6", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.30 },
-  { id: "R24", name: "Pragathi Rd S", from_junction: "J7", to_junction: "J6", lanes: 2, speed_limit: 30, length_km: 0.30 },
-  { id: "R25", name: "Allwyn Access Rd N", from_junction: "J7", to_junction: "J10", lanes: 2, speed_limit: 30, length_km: 0.23 },
-  { id: "R26", name: "Allwyn Access Rd S", from_junction: "J10", to_junction: "J7", lanes: 2, speed_limit: 30, length_km: 0.23 },
-  // === Diagonal / connector roads ===
-  { id: "R27", name: "JNTU Flyover Rd NE", from_junction: "J1", to_junction: "J4", lanes: 3, speed_limit: 40, length_km: 0.46 },
-  { id: "R28", name: "JNTU Flyover Rd SW", from_junction: "J4", to_junction: "J1", lanes: 3, speed_limit: 40, length_km: 0.46 },
-  { id: "R29", name: "Colony Diagonal NE", from_junction: "J4", to_junction: "J10", lanes: 2, speed_limit: 30, length_km: 0.42 },
-  { id: "R30", name: "Colony Diagonal SW", from_junction: "J10", to_junction: "J4", lanes: 2, speed_limit: 30, length_km: 0.42 },
-  { id: "R31", name: "High Tension Line Rd E", from_junction: "J5", to_junction: "J10", lanes: 2, speed_limit: 30, length_km: 0.81 },
-  { id: "R32", name: "High Tension Line Rd W", from_junction: "J10", to_junction: "J5", lanes: 2, speed_limit: 30, length_km: 0.81 },
-  // One-way service road
-  { id: "R33", name: "Metro Service Rd", from_junction: "J9", to_junction: "J10", lanes: 2, speed_limit: 25, length_km: 0.33 },
+  // Major Corridors (50 km/h, 3 lanes)
+  { id: "R11", name: "KPHB Main Road East", from_junction: "J1", to_junction: "J2", lanes: 3, speed_limit: 50, length_km: 0.55 },
+  { id: "R12", name: "KPHB Main Road West", from_junction: "J2", to_junction: "J1", lanes: 3, speed_limit: 50, length_km: 0.55 },
+  { id: "R13", name: "NH65 South", from_junction: "J1", to_junction: "J3", lanes: 3, speed_limit: 50, length_km: 0.70 },
+  { id: "R31", name: "NH65 North", from_junction: "J3", to_junction: "J1", lanes: 3, speed_limit: 50, length_km: 0.70 },
+  { id: "R610", name: "Bachupally Road North", from_junction: "J6", to_junction: "J10", lanes: 3, speed_limit: 50, length_km: 0.85 },
+  { id: "R106", name: "Bachupally Road South", from_junction: "J10", to_junction: "J6", lanes: 3, speed_limit: 50, length_km: 0.85 },
+  { id: "R710", name: "Outer Ring Road East", from_junction: "J7", to_junction: "J10", lanes: 3, speed_limit: 50, length_km: 1.70 },
+  { id: "R107", name: "Outer Ring Road West", from_junction: "J10", to_junction: "J7", lanes: 3, speed_limit: 50, length_km: 1.70 },
+
+  // Local Roads (40 km/h, 2 lanes)
+  { id: "R14", name: "Kukatpally Main Road", from_junction: "J1", to_junction: "J4", lanes: 2, speed_limit: 40, length_km: 0.48 },
+  { id: "R23", name: "KPHB-JNTU Connector East", from_junction: "J2", to_junction: "J3", lanes: 2, speed_limit: 40, length_km: 0.45 },
+  { id: "R32", name: "KPHB-JNTU Connector West", from_junction: "J3", to_junction: "J2", lanes: 2, speed_limit: 40, length_km: 0.45 },
+  { id: "R25", name: "Balanagar Road South", from_junction: "J2", to_junction: "J5", lanes: 2, speed_limit: 40, length_km: 1.40 },
+  { id: "R52", name: "Balanagar Road North", from_junction: "J5", to_junction: "J2", lanes: 2, speed_limit: 40, length_km: 1.40 },
+  { id: "R26", name: "Allwyn Colony Road North", from_junction: "J2", to_junction: "J6", lanes: 2, speed_limit: 40, length_km: 0.58 },
+  { id: "R62", name: "Allwyn Colony Road South", from_junction: "J6", to_junction: "J2", lanes: 2, speed_limit: 40, length_km: 0.58 },
+  { id: "R35", name: "JNTU-Balanagar Road South", from_junction: "J3", to_junction: "J5", lanes: 2, speed_limit: 40, length_km: 1.10 },
+  { id: "R53", name: "JNTU-Balanagar Road North", from_junction: "J5", to_junction: "J3", lanes: 2, speed_limit: 40, length_km: 1.10 },
+  { id: "R38", name: "Pragathi Nagar Road North", from_junction: "J3", to_junction: "J8", lanes: 2, speed_limit: 40, length_km: 1.50 },
+  { id: "R42", name: "NH65 via Bus Depot", from_junction: "J4", to_junction: "J2", lanes: 2, speed_limit: 40, length_km: 1.00 },
+  { id: "R45", name: "Industrial Corridor East", from_junction: "J4", to_junction: "J5", lanes: 2, speed_limit: 40, length_km: 1.30 },
+  { id: "R54", name: "Industrial Corridor West", from_junction: "J5", to_junction: "J4", lanes: 2, speed_limit: 40, length_km: 1.30 },
+  { id: "R46", name: "Allwyn Connector North", from_junction: "J4", to_junction: "J6", lanes: 2, speed_limit: 40, length_km: 0.55 },
+  { id: "R64", name: "Allwyn Connector South", from_junction: "J6", to_junction: "J4", lanes: 2, speed_limit: 40, length_km: 0.55 },
+  { id: "R49", name: "Depot-Pragathi Nagar Road", from_junction: "J4", to_junction: "J9", lanes: 2, speed_limit: 40, length_km: 0.95 },
+  { id: "R57", name: "Balanagar-Moosapet Link East", from_junction: "J5", to_junction: "J7", lanes: 2, speed_limit: 40, length_km: 0.60 },
+  { id: "R75", name: "Balanagar-Moosapet Link West", from_junction: "J7", to_junction: "J5", lanes: 2, speed_limit: 40, length_km: 0.60 },
+  { id: "R58", name: "Balanagar North Road", from_junction: "J5", to_junction: "J8", lanes: 2, speed_limit: 40, length_km: 1.80 },
+  { id: "R72", name: "Moosapet-KPHB Road", from_junction: "J7", to_junction: "J2", lanes: 2, speed_limit: 40, length_km: 1.50 },
+  { id: "R83", name: "Petbasheerabad-Balanagar Road", from_junction: "J8", to_junction: "J5", lanes: 2, speed_limit: 40, length_km: 1.50 },
+  { id: "R85", name: "Petbasheerabad-JNTU Road", from_junction: "J8", to_junction: "J3", lanes: 2, speed_limit: 40, length_km: 1.80 },
+  { id: "R89", name: "Pragathi Nagar South East", from_junction: "J8", to_junction: "J9", lanes: 2, speed_limit: 40, length_km: 0.70 },
+  { id: "R98", name: "Pragathi Nagar South West", from_junction: "J9", to_junction: "J8", lanes: 2, speed_limit: 40, length_km: 0.70 },
+  { id: "R93", name: "Pragathi Nagar-JNTU Road", from_junction: "J9", to_junction: "J3", lanes: 2, speed_limit: 40, length_km: 1.20 },
+  { id: "R94", name: "Pragathi Nagar-Depot Road", from_junction: "J9", to_junction: "J4", lanes: 2, speed_limit: 40, length_km: 0.95 },
 ];
 
 export const mockSignalPhases: MapData["signal_phases"] = mockJunctions.flatMap((j) => [
@@ -106,7 +101,7 @@ export const mockSignalPhases: MapData["signal_phases"] = mockJunctions.flatMap(
 
 export function getMockMapData(): MapData {
   return {
-    region_name: "Kukatpally Traffic Region",
+    region_name: "Kukatpally Traffic Zone",
     junctions: mockJunctions.map((j) => {
       const td = junctionTrafficData[j.id];
       return {
@@ -155,8 +150,8 @@ export function getMockNetworkStatus(): NetworkStatus {
   return {
     network: {
       num_junctions: 10,
-      num_roads: 33,
-      junction_costs: mockJunctions.map((j, i) => ({
+      num_roads: 34,
+      junction_costs: mockJunctions.map((j) => ({
         junction_id: j.id,
         traffic_delay: Math.round((5 + Math.random() * 20) * 10) / 10,
         signal_wait: Math.round((3 + Math.random() * 15) * 10) / 10,
@@ -166,18 +161,18 @@ export function getMockNetworkStatus(): NetworkStatus {
   };
 }
 
-// Simple path finding for mock - using adjacency
+// Adjacency based on Kukatpally Zone roads
 const adjacency: Record<string, string[]> = {
-  J1: ["J2", "J3", "J4"],
-  J2: ["J1", "J4", "J6"],
-  J3: ["J1", "J4", "J5"],
-  J4: ["J1", "J2", "J3", "J7", "J8", "J10"],
-  J5: ["J3", "J8", "J10"],
-  J6: ["J2", "J7"],
-  J7: ["J4", "J6", "J9", "J10"],
-  J8: ["J4", "J5", "J10"],
-  J9: ["J7", "J10"],
-  J10: ["J4", "J5", "J7", "J8", "J9"],
+  J1: ["J2", "J3", "J4"],           // KPHB Main, NH65, Kukatpally Main
+  J2: ["J1", "J3", "J5", "J6", "J7"], // Reverse + Balanagar, Allwyn, Moosapet
+  J3: ["J1", "J2", "J5", "J8"],     // NH65, KPHB-JNTU, Balanagar, Pragathi
+  J4: ["J2", "J5", "J6", "J9"],     // Bus Depot, Industrial, Allwyn, Pragathi
+  J5: ["J2", "J3", "J4", "J7", "J8"], // All connections
+  J6: ["J2", "J4", "J10"],          // Allwyn, Connector, Bachupally
+  J7: ["J2", "J5", "J10"],          // Moosapet, Balanagar, ORR
+  J8: ["J3", "J5", "J9", "J10"],    // Petbasheerabad connections
+  J9: ["J4", "J8", "J3"],           // Pragathi Nagar hub
+  J10: ["J6", "J7", "J8"],          // Bachupally terminus
 };
 
 function bfs(start: string, end: string): string[] | null {
@@ -210,7 +205,8 @@ export function getMockRoute(sourceIdx: number, destIdx: number): RouteResult {
   let totalCost = 0;
   for (let i = 0; i < path.length - 1; i++) {
     const road = mockRoads.find((r) => r.from_junction === path[i] && r.to_junction === path[i + 1]);
-    const cost = road ? road.length_km * 10 + (60 / road.speed_limit) * 5 : 5;
+    // Cost = travel time in seconds (distance/speed * 3600)
+    const cost = road ? (road.length_km / road.speed_limit) * 3600 : 30;
     totalCost += cost;
     segments.push({
       from_junction: path[i],
