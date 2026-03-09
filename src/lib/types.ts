@@ -39,12 +39,7 @@ export interface SignalPhase {
   max_green: number;
 }
 
-export interface MapData {
-  region_name: string;
-  junctions: Junction[];
-  roads: Road[];
-  signal_phases: SignalPhase[];
-}
+// MapData is now defined after TurnRestriction at the end of the file
 
 export interface JunctionDetail {
   junction: Junction;
