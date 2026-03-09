@@ -68,13 +68,13 @@ const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name
 
 const UserRoutePage = () => {
   const { data } = useMapData();
+  const queryClient = useQueryClient();
   const findRoutesMutation = useFindMultipleRoutes();
 
   const [source, setSource] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [routeResult, setRouteResult] = useState<MultiRouteResult | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
-  const [liveDensities, setLiveDensities] = useState<Record<string, DensityLevel>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
