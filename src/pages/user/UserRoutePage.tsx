@@ -92,9 +92,12 @@ const UserRoutePage = () => {
       if (route.success && route.path.length > 1) {
         for (let i = 0; i < route.path.length - 1; i++) {
           set.add(`${route.path[i]}-${route.path[i + 1]}`);
+          set.add(`${route.path[i + 1]}-${route.path[i]}`); // match both directions
         }
       }
-      return { set, color: route.color || ROUTE_COLORS[idx], isSelected: idx === selectedRouteIndex };
+      const isSelected = idx === selectedRouteIndex;
+      const color = isSelected ? SELECTED_ROUTE_COLOR : (UNSELECTED_ROUTE_COLORS[idx > selectedRouteIndex ? idx - 1 : idx] || "#94a3b8");
+      return { set, color, isSelected };
     });
 
     const hasRoutes = routes.length > 0;
