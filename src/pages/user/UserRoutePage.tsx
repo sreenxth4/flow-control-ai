@@ -98,6 +98,7 @@ const UserRoutePage = () => {
     const junctionMap = new Map(data.junctions.map((j) => [j.id, j]));
     const routes = routeResult?.routes || [];
     const selectedRoute = routes[selectedRouteIndex];
+    const routeColors = getRouteColorByRank(routes);
     
     // Build route road sets for each route
     const routeRoadSets = routes.map((route, idx) => {
@@ -105,12 +106,11 @@ const UserRoutePage = () => {
       if (route.success && route.path.length > 1) {
         for (let i = 0; i < route.path.length - 1; i++) {
           set.add(`${route.path[i]}-${route.path[i + 1]}`);
-          set.add(`${route.path[i + 1]}-${route.path[i]}`); // match both directions
+          set.add(`${route.path[i + 1]}-${route.path[i]}`);
         }
       }
       const isSelected = idx === selectedRouteIndex;
-      const color = isSelected ? SELECTED_ROUTE_COLOR : (UNSELECTED_ROUTE_COLORS[idx > selectedRouteIndex ? idx - 1 : idx] || "#94a3b8");
-      return { set, color, isSelected };
+      return { set, color: routeColors[idx], isSelected };
     });
 
     const hasRoutes = routes.length > 0;
