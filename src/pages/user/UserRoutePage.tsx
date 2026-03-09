@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useMapData, useFindMultipleRoutes } from "@/hooks/use-map-data";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MapPin, Route, X, ArrowRight, Loader2, AlertTriangle, Clock } from "lucide-react";
 import type { RouteResult, DensityLevel, MultiRouteResult } from "@/lib/types";
-import { mockJunctions, getRandomizedJunctionDensities } from "@/lib/mock-data";
+import { mockJunctions } from "@/lib/mock-data";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -67,25 +68,25 @@ const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name
 
 const UserRoutePage = () => {
   const { data } = useMapData();
+  const queryClient = useQueryClient();
   const findRoutesMutation = useFindMultipleRoutes();
 
   const [source, setSource] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
   const [routeResult, setRouteResult] = useState<MultiRouteResult | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
-  const [liveDensities, setLiveDensities] = useState<Record<string, DensityLevel>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
 
-  // Live density animation - update every 5 seconds
+  // Refetch map data every 15s for near-real-time density/vehicle updates
   useEffect(() => {
     const interval = setInterval(() => {
-      setLiveDensities(getRandomizedJunctionDensities());
-    }, 5000);
+      queryClient.invalidateQueries({ queryKey: ["map-data"] });
+    }, 15_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [queryClient]);
 
   // Init map - Kukatpally center
   useEffect(() => {
@@ -194,8 +195,8 @@ const UserRoutePage = () => {
       const isDest = destination === j.id;
       const isOnRoute = allRoutePaths.has(j.id);
       
-      // Use live density
-      const currentDensity = liveDensities[j.id] || j.density;
+      // Use real-time density from backend
+      const currentDensity = j.density;
       const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : currentDensity ? DENSITY_COLORS[currentDensity] : "#CCCCCC";
       const radius = isSource || isDest ? 20 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
 
@@ -235,7 +236,7 @@ const UserRoutePage = () => {
         L.marker([j.lat, j.lng], { icon: starIcon, interactive: false }).addTo(layers);
       }
     });
-  }, [data, routeResult, source, destination, selectedRouteIndex, liveDensities]);
+  }, [data, routeResult, source, destination, selectedRouteIndex]);
 
   const handleFindRoute = useCallback(async () => {
     if (!source || !destination) return;
