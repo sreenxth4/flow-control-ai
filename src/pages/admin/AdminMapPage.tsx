@@ -72,6 +72,7 @@ const AdminMapPage = () => {
             roads={data.roads}
             flyTo={flyTo}
             onJunctionClick={handleJunctionClick}
+            turnRestrictions={data.turn_restrictions}
           />
         )}
       </div>
