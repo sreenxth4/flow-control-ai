@@ -318,7 +318,7 @@ const UserRoutePage = () => {
                         <div className="flex items-center gap-2">
                           <span 
                             className="h-3 w-3 rounded-full" 
-                            style={{ backgroundColor: idx === selectedRouteIndex ? SELECTED_ROUTE_COLOR : ROUTE_COLORS_LEGEND[idx] }} 
+                            style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[idx] : "#6b7280" }} 
                           />
                           <span className="text-sm font-medium">{ROUTE_LABELS[idx]}</span>
                         </div>
