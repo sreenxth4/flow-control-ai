@@ -396,7 +396,7 @@ const UserRoutePage = () => {
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <span 
                       className="h-3 w-3 rounded-full" 
-                      style={{ backgroundColor: SELECTED_ROUTE_COLOR }} 
+                      style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[selectedRouteIndex] : "#22c55e" }} 
                     />
                     {ROUTE_LABELS[selectedRouteIndex]} Route
                   </CardTitle>
