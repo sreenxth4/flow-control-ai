@@ -94,30 +94,46 @@ const UserRoutePage = () => {
       return { set, color: route.color || ROUTE_COLORS[idx], isSelected: idx === selectedRouteIndex };
     });
 
+    const hasRoutes = routes.length > 0;
+
     // Roads
     data.roads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
       
-      // Check if this road is on any route
       const matchingRoute = routeRoadSets.find(r => r.set.has(`${road.from_junction}-${road.to_junction}`));
       const isOneWay = ONE_WAY_ROADS.includes(road.id);
-      const speedColor = getSpeedColor(road.speed_limit);
-      const weight = 1.5 + road.lanes * 0.75;
 
-      const lineColor = matchingRoute ? matchingRoute.color : speedColor;
-      const lineWeight = matchingRoute ? (matchingRoute.isSelected ? 7 : 4) : weight;
-      const lineOpacity = matchingRoute ? (matchingRoute.isSelected ? 1 : 0.6) : 0.5;
+      let lineColor: string;
+      let lineWeight: number;
+      let lineOpacity: number;
+      let dashArray: string | undefined;
+
+      if (matchingRoute) {
+        lineColor = matchingRoute.color;
+        lineWeight = matchingRoute.isSelected ? 8 : 5;
+        lineOpacity = matchingRoute.isSelected ? 1 : 0.7;
+      } else if (hasRoutes) {
+        // Dim all non-route roads when routes are displayed
+        lineColor = "#6b7280";
+        lineWeight = 1;
+        lineOpacity = 0.15;
+      } else {
+        // Default: subtle gray roads
+        lineColor = isOneWay ? "#94a3b8" : "#6b7280";
+        lineWeight = 1.5 + road.lanes * 0.5;
+        lineOpacity = 0.45;
+        dashArray = isOneWay ? "6 4" : undefined;
+      }
 
       const line = L.polyline([[from.lat, from.lng], [to.lat, to.lng]], {
         color: lineColor,
         weight: lineWeight,
         opacity: lineOpacity,
-        dashArray: isOneWay && !matchingRoute ? "8 6" : undefined,
+        dashArray,
       });
 
-      // Road details tooltip on hover
       const lengthM = (road.length_km * 1000).toFixed(0);
       const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
       line.bindTooltip(
