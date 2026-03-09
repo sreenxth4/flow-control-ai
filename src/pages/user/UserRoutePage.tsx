@@ -28,7 +28,7 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
-const ROUTE_COLORS = ["#22c55e", "#f59e0b", "#3b82f6"];
+const ROUTE_COLORS = ["#22c55e", "#f59e0b", "#87CEEB"];
 const ROUTE_LABELS = ["Fastest", "Alternate", "Longer"];
 
 const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
