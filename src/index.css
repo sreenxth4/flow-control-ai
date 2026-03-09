@@ -141,10 +141,47 @@
 
 /* Density pulse animation */
 @keyframes density-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%, 100% { 
+    opacity: 0.9;
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.6;
+    transform: scale(1.15); 
+  }
 }
 
 .animate-density-pulse {
   animation: density-pulse 2s ease-in-out infinite;
+}
+
+/* Junction highlight pulse for flyTo */
+@keyframes highlight-pulse {
+  0% { 
+    opacity: 0.7;
+    transform: scale(1); 
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.5);
+  }
+  100% { 
+    opacity: 0;
+    transform: scale(2); 
+  }
+}
+
+.junction-highlight-pulse {
+  animation: highlight-pulse 2s ease-out forwards;
+}
+
+/* Junction marker container */
+.junction-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.junction-circle {
+  transition: all 0.3s ease;
 }
