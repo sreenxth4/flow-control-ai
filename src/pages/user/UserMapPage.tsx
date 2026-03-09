@@ -13,8 +13,8 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   HIGH: "#FF0000",
 };
 
-// Speed colors for roads
-const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
+// Road colors: BLACK for major (50+ km/h), GREY for local (40 km/h)
+const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
 // Marker size by vehicle count
 const getMarkerSize = (vehicleCount?: number) => {
