@@ -360,7 +360,7 @@ const UserRoutePage = () => {
                 </div>
                 <div className="mt-2 border-t pt-2">
                   <p className="font-medium mb-1">Route Colors:</p>
-                  {ROUTE_COLORS.map((color, idx) => (
+                  {ROUTE_COLORS_LEGEND.map((color, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <span className="h-1 w-4 rounded" style={{ backgroundColor: color }} />
                       <span>{ROUTE_LABELS[idx]}</span>
