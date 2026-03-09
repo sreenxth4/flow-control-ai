@@ -62,17 +62,15 @@ const UserMapPage = () => {
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
 
-      const isOneWay = ONE_WAY_ROADS.includes(road.id);
-      const speedColor = getSpeedColor(road.speed_limit);
+      const roadColor = getRoadColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;
 
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
         {
-          color: speedColor,
+          color: roadColor,
           weight,
           opacity: 0.7,
-          dashArray: isOneWay ? "8 6" : undefined,
         }
       );
       

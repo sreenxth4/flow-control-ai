@@ -141,10 +141,10 @@ export function TrafficMap({
       const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
       const multiRouteMatch = multiRouteRoadSets.find(r => r.set.has(`${road.from_junction}-${road.to_junction}`));
       const isOneWay = ONE_WAY_ROADS.includes(road.id);
-      const roadColor = getRoadColor(road.speed_limit);
+      const speedColor = getSpeedColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;
 
-      const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#FF0000" : roadColor;
+      const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#FF0000" : speedColor;
       const lineWeight = multiRouteMatch || isOnRoute ? 6 : weight;
       const lineOpacity = multiRouteMatch || isOnRoute ? 1 : 0.7;
 
@@ -154,6 +154,7 @@ export function TrafficMap({
           color: lineColor,
           weight: lineWeight,
           opacity: lineOpacity,
+          dashArray: isOneWay && !isOnRoute && !multiRouteMatch ? "8 6" : undefined,
         }
       );
 
