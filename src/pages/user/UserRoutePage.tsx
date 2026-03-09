@@ -236,7 +236,7 @@ const UserRoutePage = () => {
         L.marker([j.lat, j.lng], { icon: starIcon, interactive: false }).addTo(layers);
       }
     });
-  }, [data, routeResult, source, destination, selectedRouteIndex, liveDensities]);
+  }, [data, routeResult, source, destination, selectedRouteIndex]);
 
   const handleFindRoute = useCallback(async () => {
     if (!source || !destination) return;
