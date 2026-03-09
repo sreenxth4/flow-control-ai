@@ -305,7 +305,7 @@ const UserRoutePage = () => {
                         <div className="flex items-center gap-2">
                           <span 
                             className="h-3 w-3 rounded-full" 
-                            style={{ backgroundColor: route.color || ROUTE_COLORS[idx] }} 
+                            style={{ backgroundColor: idx === selectedRouteIndex ? SELECTED_ROUTE_COLOR : ROUTE_COLORS_LEGEND[idx] }} 
                           />
                           <span className="text-sm font-medium">{ROUTE_LABELS[idx]}</span>
                         </div>
