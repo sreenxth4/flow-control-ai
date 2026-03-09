@@ -336,9 +336,9 @@ const UserRoutePage = () => {
                             className="h-3 w-3 rounded-full" 
                             style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[idx] : "#6b7280" }} 
                           />
-                          <span className="text-sm font-medium">{ROUTE_LABELS[idx]}</span>
+                          <span className="text-sm font-medium">{getRouteLabelByRank(routeResult.routes)[idx]}</span>
                         </div>
-                        <span className="text-sm font-mono font-bold">{route.total_cost.toFixed(1)}s</span>
+                        <span className="text-sm font-mono font-bold">{(route.total_cost + (route.congestion_delay || 0)).toFixed(1)}s</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{route.num_junctions} junctions</span>
