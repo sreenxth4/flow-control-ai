@@ -14,15 +14,12 @@ import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Density colors: GREEN/ORANGE/RED
+// Density colors
 const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#00AA00",
-  MEDIUM: "#FF8800",
-  HIGH: "#FF0000",
+  LOW: "#22c55e",
+  MEDIUM: "#f59e0b",
+  HIGH: "#ef4444",
 };
-
-// Speed colors
-const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
 
 // Marker size by vehicle count
 const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
@@ -30,9 +27,9 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 // One-way roads
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
-// Route colors
-const ROUTE_COLORS = ["#FF0000", "#FFD700", "#3B82F6"];
-const ROUTE_LABELS = ["Fastest", "Alternate 1", "Alternate 2"];
+// Route colors: Green=fastest, Amber=alternate, Blue=longer
+const ROUTE_COLORS = ["#22c55e", "#f59e0b", "#3b82f6"];
+const ROUTE_LABELS = ["Fastest", "Alternate", "Longer"];
 
 const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
 const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name || id;
