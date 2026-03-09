@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Play, Loader2, Car, Bike, Bus, Truck } from "lucide-react";
@@ -14,24 +13,24 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { mockJunctions } from "@/lib/mock-data";
 
-// Junction camera options
+// Junction camera options - Kukatpally Zone
 const JUNCTION_CAMERAS = [
-  { id: "J1", name: "JNTU Main Gate" },
-  { id: "J2", name: "GHMC Park Signal" },
-  { id: "J3", name: "HMT Hills Junction" },
-  { id: "J4", name: "Road No 1 Circle" },
-  { id: "J5", name: "Kukatpally Y Junction" },
-  { id: "J6", name: "Apollo Pharmacy Jn" },
-  { id: "J7", name: "KPHB Bus Stop" },
-  { id: "J8", name: "Sathavahana Nagar Gate" },
-  { id: "J9", name: "NTR Nagar Junction" },
-  { id: "J10", name: "Allwyn Colony X Roads" },
+  { id: "J1", name: "Kukatpally Y Junction" },
+  { id: "J2", name: "KPHB Colony Signal" },
+  { id: "J3", name: "JNTU Gate Junction" },
+  { id: "J4", name: "Kukatpally Bus Depot" },
+  { id: "J5", name: "Balanagar X Roads" },
+  { id: "J6", name: "Allwyn X Roads" },
+  { id: "J7", name: "Moosapet X Roads" },
+  { id: "J8", name: "Petbasheerabad Junction" },
+  { id: "J9", name: "Pragathi Nagar Junction" },
+  { id: "J10", name: "Bachupally Junction" },
 ] as const;
 
 const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#22c55e",
-  MEDIUM: "#eab308",
-  HIGH: "#ef4444",
+  LOW: "#00AA00",
+  MEDIUM: "#FF8800",
+  HIGH: "#FF0000",
 };
 
 interface AnalysisResult {
@@ -72,7 +71,6 @@ function classifyDensity(pcu: number): DensityLevel {
 export function VideoDetectionPanel() {
   const [selectedJunction, setSelectedJunction] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [fps, setFps] = useState(5);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -102,12 +100,12 @@ export function VideoDetectionPanel() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  // Init map
+  // Init map - Kukatpally center
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
-      center: [17.4945, 78.3990],
-      zoom: 16,
+      center: [17.49, 78.38],
+      zoom: 14,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -128,19 +126,18 @@ export function VideoDetectionPanel() {
     mockJunctions.forEach((j) => {
       const status = statuses.find((s) => s.junctionId === j.id);
       const density = status?.density;
-      const color = density ? DENSITY_COLORS[density] : "#6b7280";
+      const color = density ? DENSITY_COLORS[density] : "#CCCCCC";
       const isHighlighted = highlightedJunction === j.id;
 
       const marker = L.circleMarker([j.lat, j.lng], {
-        radius: isHighlighted ? 16 : 10,
+        radius: isHighlighted ? 18 : 12,
         fillColor: color,
-        fillOpacity: isHighlighted ? 1 : 0.8,
+        fillOpacity: isHighlighted ? 1 : 0.85,
         color: isHighlighted ? "#fff" : "#374151",
         weight: isHighlighted ? 3 : 1.5,
-        className: isHighlighted ? "animate-density-pulse" : "",
       });
       marker.bindPopup(
-        `<div class="text-sm"><strong>${j.name}</strong> (${j.id})<br/>Density: ${density || "Pending"}</div>`
+        `<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${density || "Pending"}</div>`
       );
       layers.addLayer(marker);
     });
@@ -165,7 +162,7 @@ export function VideoDetectionPanel() {
     setResult(null);
 
     try {
-      const res = await submitVideoDetection(selectedJunction, file, fps);
+      const res = await submitVideoDetection(selectedJunction, file, 5);
       // Parse results from API
       const vehicleTotals: Record<string, number> = {};
       res.detections_per_frame.forEach((f) => {
@@ -225,7 +222,7 @@ export function VideoDetectionPanel() {
         vehicles: mockVehicles,
         density,
         processingTime: Math.round((elapsed + Math.random() * 5) * 10) / 10,
-        averageFps: Math.round((fps * 0.8 + Math.random() * fps * 0.4) * 10) / 10,
+        averageFps: Math.round((4 + Math.random() * 2) * 10) / 10,
         timestamp: new Date().toISOString(),
       };
       setResult(mockResult);
@@ -241,7 +238,7 @@ export function VideoDetectionPanel() {
     } finally {
       setLoading(false);
     }
-  }, [file, selectedJunction, fps, elapsed]);
+  }, [file, selectedJunction, elapsed]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -299,7 +296,6 @@ export function VideoDetectionPanel() {
               )}
             </div>
           </div>
-
 
           {/* Submit */}
           <Button onClick={handleSubmit} disabled={loading || !file || !selectedJunction} className="w-full">

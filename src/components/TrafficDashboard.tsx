@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DensityBadge } from "@/components/DensityBadge";
@@ -6,16 +6,26 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMapData, usePerformance, useHealth } from "@/hooks/use-map-data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Heart, Gauge, Signal, CheckCircle, XCircle, Video, Clock } from "lucide-react";
+import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { DensityLevel, Junction, Road } from "@/lib/types";
+import type { DensityLevel, Junction } from "@/lib/types";
 
+// Density colors: GREEN/ORANGE/RED
 const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#22c55e",
-  MEDIUM: "#eab308",
-  HIGH: "#ef4444",
+  LOW: "#00AA00",
+  MEDIUM: "#FF8800",
+  HIGH: "#FF0000",
 };
+
+// Speed colors
+const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
+
+// Marker size by vehicle count
+const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
+
+// One-way roads
+const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 export function TrafficDashboard() {
   const { data: mapData, isLoading: mapLoading } = useMapData();
@@ -26,12 +36,12 @@ export function TrafficDashboard() {
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
 
-  // Init map
+  // Init map - Kukatpally center
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
-      center: [17.4945, 78.3990],
-      zoom: 16,
+      center: [17.49, 78.38],
+      zoom: 14,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -57,26 +67,47 @@ export function TrafficDashboard() {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
+
+      const isOneWay = ONE_WAY_ROADS.includes(road.id);
+      const speedColor = getSpeedColor(road.speed_limit);
+      const weight = 1.5 + road.lanes * 0.75;
+
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
-        { color: "hsl(210, 60%, 50%)", weight: Math.max(2, road.lanes), opacity: 0.5, dashArray: road.lanes <= 2 ? "6 4" : undefined }
+        {
+          color: speedColor,
+          weight,
+          opacity: 0.7,
+          dashArray: isOneWay ? "8 6" : undefined,
+        }
       );
-      line.bindPopup(`<div class="text-sm"><strong>${road.name}</strong><br/>Lanes: ${road.lanes} · ${road.speed_limit} km/h · ${road.length_km} km</div>`);
+      
+      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
+      line.bindPopup(
+        `<div style="min-width:160px">
+          <strong>${road.name}</strong><br/>
+          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
+          Length: ${(road.length_km * 1000).toFixed(0)}m | Speed: ${road.speed_limit} km/h<br/>
+          Lanes: ${road.lanes} | Base Cost: ${baseCost}s
+        </div>`
+      );
       layers.addLayer(line);
     });
 
     // Junctions
     mapData.junctions.forEach((j) => {
-      const color = j.density ? DENSITY_COLORS[j.density] : "#6b7280";
+      const color = j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
+      const radius = getMarkerSize(j.vehicle_count);
+
       const marker = L.circleMarker([j.lat, j.lng], {
-        radius: 11,
+        radius,
         fillColor: color,
-        fillOpacity: 0.85,
-        color: "#374151",
-        weight: 1.5,
+        fillOpacity: 0.9,
+        color: "#fff",
+        weight: 2,
       });
       const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
-      marker.bindPopup(`<div class="text-sm"><strong>${j.name}</strong> (${j.id})<br/>Density: ${j.density || "No data"}${pcuInfo}</div>`);
+      marker.bindPopup(`<div style="min-width:160px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${j.density || "No data"}${pcuInfo}</div>`);
       layers.addLayer(marker);
     });
   }, [mapData]);
@@ -102,7 +133,7 @@ export function TrafficDashboard() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Signal className="h-4 w-4 text-traffic-medium" /> Signal Phases — All Junctions
+              <Signal className="h-4 w-4 text-traffic-medium" /> Signal Phases — Kukatpally Zone
             </CardTitle>
           </CardHeader>
           <CardContent>

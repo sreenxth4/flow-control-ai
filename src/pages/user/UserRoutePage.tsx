@@ -6,21 +6,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Navigation, MapPin, Route, X, ArrowRight, Loader2 } from "lucide-react";
+import { MapPin, Route, X, ArrowRight, Loader2 } from "lucide-react";
 import type { RouteResult, DensityLevel } from "@/lib/types";
 import { mockJunctions } from "@/lib/mock-data";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+// Density colors: GREEN/ORANGE/RED
 const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#22c55e",
-  MEDIUM: "#eab308",
-  HIGH: "#ef4444",
+  LOW: "#00AA00",
+  MEDIUM: "#FF8800",
+  HIGH: "#FF0000",
 };
 
-const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
+// Speed colors
+const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
 
+// Marker size by vehicle count
+const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
+
+// One-way roads
+const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
+
+const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
 const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name || id;
 
 const UserRoutePage = () => {
@@ -31,17 +40,16 @@ const UserRoutePage = () => {
   const [destination, setDestination] = useState<string>("");
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
 
-  // Map refs
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
 
-  // Init map
+  // Init map - Kukatpally center
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
-      center: [17.4945, 78.3990],
-      zoom: 16,
+      center: [17.49, 78.38],
+      zoom: 14,
       zoomControl: false,
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -73,13 +81,18 @@ const UserRoutePage = () => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
+      
       const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
+      const isOneWay = ONE_WAY_ROADS.includes(road.id);
+      const speedColor = getSpeedColor(road.speed_limit);
+      const weight = 1.5 + road.lanes * 0.75;
+
       layers.addLayer(
         L.polyline([[from.lat, from.lng], [to.lat, to.lng]], {
-          color: isOnRoute ? "#22c55e" : "hsl(210, 60%, 50%)",
-          weight: isOnRoute ? 6 : Math.max(2, road.lanes),
-          opacity: isOnRoute ? 1 : 0.4,
-          dashArray: !isOnRoute && road.lanes <= 2 ? "6 4" : undefined,
+          color: isOnRoute ? "#FF0000" : speedColor,
+          weight: isOnRoute ? 6 : weight,
+          opacity: isOnRoute ? 1 : 0.5,
+          dashArray: isOneWay && !isOnRoute ? "8 6" : undefined,
         })
       );
     });
@@ -89,19 +102,30 @@ const UserRoutePage = () => {
       const isSource = source === j.id;
       const isDest = destination === j.id;
       const isOnRoute = routePath?.includes(j.id);
-      const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : j.density ? DENSITY_COLORS[j.density] : "#6b7280";
-      const radius = isSource || isDest ? 14 : isOnRoute ? 12 : 10;
+      const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
+      const radius = isSource || isDest ? 16 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
 
       const marker = L.circleMarker([j.lat, j.lng], {
         radius,
         fillColor: color,
         fillOpacity: 0.9,
-        color: "#fff",
-        weight: isSource || isDest ? 3 : 1.5,
+        color: isOnRoute ? "#FFD700" : "#fff",
+        weight: isSource || isDest ? 3 : isOnRoute ? 3 : 1.5,
       });
       const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
-      marker.bindPopup(`<div style="min-width:120px"><strong>${j.name}</strong> (${j.id})<br/>Density: ${j.density || "N/A"}${pcuInfo}</div>`);
+      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${j.density || "N/A"}${pcuInfo}</div>`);
       layers.addLayer(marker);
+
+      // Star marker for route junctions
+      if (isOnRoute && mapRef.current) {
+        const starIcon = L.divIcon({
+          className: 'route-star',
+          html: '<div style="color: #FFD700; font-size: 16px; text-shadow: 0 0 2px #000;">⭐</div>',
+          iconSize: [16, 16],
+          iconAnchor: [8, 20],
+        });
+        L.marker([j.lat, j.lng], { icon: starIcon, interactive: false }).addTo(layers);
+      }
     });
   }, [data, routeResult, source, destination]);
 
@@ -133,7 +157,7 @@ const UserRoutePage = () => {
           <div className="space-y-4 p-4">
             <div>
               <h2 className="text-lg font-bold text-foreground">Route Finder</h2>
-              <p className="text-xs text-muted-foreground">Find optimal routes through the traffic network</p>
+              <p className="text-xs text-muted-foreground">Find optimal routes through the Kukatpally traffic network</p>
             </div>
 
             {/* Source */}
@@ -184,6 +208,37 @@ const UserRoutePage = () => {
               )}
             </div>
 
+            {/* Legend */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs">Legend</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: "#00AA00" }} />
+                  <span>LOW density (0-10 vehicles)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: "#FF8800" }} />
+                  <span>MEDIUM density (11-25 vehicles)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: "#FF0000" }} />
+                  <span>HIGH density (26+ vehicles)</span>
+                </div>
+                <div className="mt-2 border-t pt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-0.5 w-4" style={{ backgroundColor: "#00CC00" }} />
+                    <span>Local roads (40 km/h)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-0.5 w-4" style={{ backgroundColor: "#0066FF" }} />
+                    <span>Major roads (50+ km/h)</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Route Result */}
             {routeResult && routeResult.success && (
               <Card className="border-primary/30">
@@ -204,8 +259,8 @@ const UserRoutePage = () => {
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-md bg-muted p-2 text-center">
-                      <p className="text-lg font-bold text-foreground">{routeResult.total_cost}</p>
-                      <p className="text-muted-foreground">Total Cost</p>
+                      <p className="text-lg font-bold text-foreground">{routeResult.total_cost.toFixed(1)}s</p>
+                      <p className="text-muted-foreground">Total Time</p>
                     </div>
                     <div className="rounded-md bg-muted p-2 text-center">
                       <p className="text-lg font-bold text-foreground">{routeResult.num_junctions}</p>
@@ -219,7 +274,7 @@ const UserRoutePage = () => {
                       <TableRow>
                         <TableHead className="text-xs">From</TableHead>
                         <TableHead className="text-xs">To</TableHead>
-                        <TableHead className="text-right text-xs">Cost</TableHead>
+                        <TableHead className="text-right text-xs">Time</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -227,7 +282,7 @@ const UserRoutePage = () => {
                         <TableRow key={i}>
                           <TableCell className="text-xs">{getJunctionName(seg.from_junction)}</TableCell>
                           <TableCell className="text-xs">{getJunctionName(seg.to_junction)}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{seg.cost}</TableCell>
+                          <TableCell className="text-right font-mono text-xs">{seg.cost.toFixed(1)}s</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
