@@ -373,12 +373,18 @@ const UserRoutePage = () => {
                 </div>
                 <div className="mt-2 border-t pt-2">
                   <p className="font-medium mb-1">Route Colors:</p>
-                  {ROUTE_COLORS_LEGEND.map((color, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="h-1 w-4 rounded" style={{ backgroundColor: color }} />
-                      <span>{ROUTE_LABELS[idx]}</span>
-                    </div>
-                  ))}
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#22c55e" }} />
+                    <span>Fastest (least time)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#87CEEB" }} />
+                    <span>Middle</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#ef4444" }} />
+                    <span>Slowest (most time)</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
