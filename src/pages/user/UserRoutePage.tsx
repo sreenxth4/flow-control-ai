@@ -80,13 +80,13 @@ const UserRoutePage = () => {
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
 
-  // Live density animation - update every 5 seconds
+  // Refetch map data every 15s for near-real-time density/vehicle updates
   useEffect(() => {
     const interval = setInterval(() => {
-      setLiveDensities(getRandomizedJunctionDensities());
-    }, 5000);
+      queryClient.invalidateQueries({ queryKey: ["map-data"] });
+    }, 15_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [queryClient]);
 
   // Init map - Kukatpally center
   useEffect(() => {
