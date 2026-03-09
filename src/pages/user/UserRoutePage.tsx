@@ -28,11 +28,24 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
-// Selected route is always green; unselected get muted amber/gray
-const SELECTED_ROUTE_COLOR = "#22c55e";
-const UNSELECTED_ROUTE_COLORS = ["#f59e0b", "#94a3b8"];
-const ROUTE_COLORS_LEGEND = ["#22c55e", "#f59e0b", "#87CEEB"];
-const ROUTE_LABELS = ["Fastest", "Alternate", "Longer"];
+// Route colors assigned by travel time: green=fastest, skyblue=middle, red=slowest
+const getRouteColorByRank = (routes: { total_cost: number; congestion_delay?: number }[]) => {
+  if (routes.length <= 1) return ["#22c55e"];
+  const totalTimes = routes.map((r, i) => ({ i, time: r.total_cost + (r.congestion_delay || 0) }));
+  totalTimes.sort((a, b) => a.time - b.time);
+  const colorMap: Record<number, string> = {};
+  colorMap[totalTimes[0].i] = "#22c55e"; // green = fastest
+  if (totalTimes.length === 2) {
+    colorMap[totalTimes[1].i] = "#ef4444"; // red = slowest
+  } else {
+    colorMap[totalTimes[totalTimes.length - 1].i] = "#ef4444"; // red = slowest
+    for (let k = 1; k < totalTimes.length - 1; k++) {
+      colorMap[totalTimes[k].i] = "#87CEEB"; // skyblue = middle
+    }
+  }
+  return routes.map((_, i) => colorMap[i]);
+};
+const ROUTE_LABELS = ["Route 1", "Route 2", "Route 3"];
 
 const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
 const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name || id;
@@ -85,6 +98,7 @@ const UserRoutePage = () => {
     const junctionMap = new Map(data.junctions.map((j) => [j.id, j]));
     const routes = routeResult?.routes || [];
     const selectedRoute = routes[selectedRouteIndex];
+    const routeColors = getRouteColorByRank(routes);
     
     // Build route road sets for each route
     const routeRoadSets = routes.map((route, idx) => {
@@ -92,12 +106,11 @@ const UserRoutePage = () => {
       if (route.success && route.path.length > 1) {
         for (let i = 0; i < route.path.length - 1; i++) {
           set.add(`${route.path[i]}-${route.path[i + 1]}`);
-          set.add(`${route.path[i + 1]}-${route.path[i]}`); // match both directions
+          set.add(`${route.path[i + 1]}-${route.path[i]}`);
         }
       }
       const isSelected = idx === selectedRouteIndex;
-      const color = isSelected ? SELECTED_ROUTE_COLOR : (UNSELECTED_ROUTE_COLORS[idx > selectedRouteIndex ? idx - 1 : idx] || "#94a3b8");
-      return { set, color, isSelected };
+      return { set, color: routeColors[idx], isSelected };
     });
 
     const hasRoutes = routes.length > 0;
@@ -305,7 +318,7 @@ const UserRoutePage = () => {
                         <div className="flex items-center gap-2">
                           <span 
                             className="h-3 w-3 rounded-full" 
-                            style={{ backgroundColor: idx === selectedRouteIndex ? SELECTED_ROUTE_COLOR : ROUTE_COLORS_LEGEND[idx] }} 
+                            style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[idx] : "#6b7280" }} 
                           />
                           <span className="text-sm font-medium">{ROUTE_LABELS[idx]}</span>
                         </div>
@@ -360,12 +373,18 @@ const UserRoutePage = () => {
                 </div>
                 <div className="mt-2 border-t pt-2">
                   <p className="font-medium mb-1">Route Colors:</p>
-                  {ROUTE_COLORS_LEGEND.map((color, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="h-1 w-4 rounded" style={{ backgroundColor: color }} />
-                      <span>{ROUTE_LABELS[idx]}</span>
-                    </div>
-                  ))}
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#22c55e" }} />
+                    <span>Fastest (least time)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#87CEEB" }} />
+                    <span>Middle</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#ef4444" }} />
+                    <span>Slowest (most time)</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -377,7 +396,7 @@ const UserRoutePage = () => {
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <span 
                       className="h-3 w-3 rounded-full" 
-                      style={{ backgroundColor: SELECTED_ROUTE_COLOR }} 
+                      style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[selectedRouteIndex] : "#22c55e" }} 
                     />
                     {ROUTE_LABELS[selectedRouteIndex]} Route
                   </CardTitle>
