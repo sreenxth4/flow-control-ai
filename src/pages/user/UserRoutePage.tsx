@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MapPin, Route, X, ArrowRight, Loader2, AlertTriangle, Clock } from "lucide-react";
 import type { RouteResult, DensityLevel, MultiRouteResult } from "@/lib/types";
-import { mockJunctions, getRandomizedJunctionDensities } from "@/lib/mock-data";
+import { mockJunctions } from "@/lib/mock-data";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
