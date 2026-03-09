@@ -1,4 +1,4 @@
-import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult, VehicleDistribution } from "./types";
+import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult, VehicleDistribution, TurnRestriction, MultiRouteResult, CongestedJunction } from "./types";
 
 const densities: DensityLevel[] = ["LOW", "MEDIUM", "HIGH"];
 
@@ -25,6 +25,13 @@ const junctionTrafficData: Record<string, { density: DensityLevel; vehicles: Veh
   J8:  { density: "LOW",    vehicles: { car: 2, bike: 4, auto: 1, bus: 0, truck: 0, cycle: 5 } },
   J9:  { density: "HIGH",   vehicles: { car: 9, bike: 5, auto: 2, bus: 4, truck: 3, cycle: 1 } },
   J10: { density: "MEDIUM", vehicles: { car: 6, bike: 7, auto: 2, bus: 1, truck: 1, cycle: 2 } },
+};
+
+// Congestion delay per density level (seconds)
+const CONGESTION_DELAYS: Record<DensityLevel, number> = {
+  LOW: 0,
+  MEDIUM: 10,
+  HIGH: 25,
 };
 
 // Kukatpally Zone Junctions (10 Total)
@@ -82,6 +89,16 @@ export const mockRoads = [
   { id: "R94", name: "Pragathi Nagar-Depot Road", from_junction: "J9", to_junction: "J4", lanes: 2, speed_limit: 40, length_km: 0.95 },
 ];
 
+// Turn Restrictions
+export const mockTurnRestrictions: TurnRestriction[] = [
+  { junction_id: "J3", from_road: "R13", to_road: "R35", restriction_type: "no_left" },
+  { junction_id: "J3", from_road: "R23", to_road: "R31", restriction_type: "no_uturn" },
+  { junction_id: "J5", from_road: "R25", to_road: "R54", restriction_type: "no_right" },
+  { junction_id: "J5", from_road: "R35", to_road: "R52", restriction_type: "no_uturn" },
+  { junction_id: "J9", from_road: "R49", to_road: "R93", restriction_type: "no_left" },
+  { junction_id: "J4", from_road: "R14", to_road: "R46", restriction_type: "no_right" },
+];
+
 export const mockSignalPhases: MapData["signal_phases"] = mockJunctions.flatMap((j) => [
   {
     junction_id: j.id,
@@ -114,6 +131,7 @@ export function getMockMapData(): MapData {
     }),
     roads: mockRoads,
     signal_phases: mockSignalPhases,
+    turn_restrictions: mockTurnRestrictions,
   };
 }
 
@@ -163,19 +181,90 @@ export function getMockNetworkStatus(): NetworkStatus {
 
 // Adjacency based on Kukatpally Zone roads
 const adjacency: Record<string, string[]> = {
-  J1: ["J2", "J3", "J4"],           // KPHB Main, NH65, Kukatpally Main
-  J2: ["J1", "J3", "J5", "J6", "J7"], // Reverse + Balanagar, Allwyn, Moosapet
-  J3: ["J1", "J2", "J5", "J8"],     // NH65, KPHB-JNTU, Balanagar, Pragathi
-  J4: ["J2", "J5", "J6", "J9"],     // Bus Depot, Industrial, Allwyn, Pragathi
-  J5: ["J2", "J3", "J4", "J7", "J8"], // All connections
-  J6: ["J2", "J4", "J10"],          // Allwyn, Connector, Bachupally
-  J7: ["J2", "J5", "J10"],          // Moosapet, Balanagar, ORR
-  J8: ["J3", "J5", "J9", "J10"],    // Petbasheerabad connections
-  J9: ["J4", "J8", "J3"],           // Pragathi Nagar hub
-  J10: ["J6", "J7", "J8"],          // Bachupally terminus
+  J1: ["J2", "J3", "J4"],
+  J2: ["J1", "J3", "J5", "J6", "J7"],
+  J3: ["J1", "J2", "J5", "J8"],
+  J4: ["J2", "J5", "J6", "J9"],
+  J5: ["J2", "J3", "J4", "J7", "J8"],
+  J6: ["J2", "J4", "J10"],
+  J7: ["J2", "J5", "J10"],
+  J8: ["J3", "J5", "J9", "J10"],
+  J9: ["J4", "J8", "J3"],
+  J10: ["J6", "J7", "J8"],
 };
 
-function bfs(start: string, end: string): string[] | null {
+// K-shortest paths using Yen's algorithm variant
+function findKShortestPaths(start: string, end: string, k: number = 3): string[][] {
+  const paths: string[][] = [];
+  
+  // BFS to find shortest path
+  const bfs = (excludeEdges: Set<string> = new Set(), excludeNodes: Set<string> = new Set()): string[] | null => {
+    const queue: string[][] = [[start]];
+    const visited = new Set<string>([start]);
+    while (queue.length > 0) {
+      const path = queue.shift()!;
+      const node = path[path.length - 1];
+      if (node === end) return path;
+      for (const neighbor of adjacency[node] || []) {
+        const edge = `${node}-${neighbor}`;
+        if (!visited.has(neighbor) && !excludeEdges.has(edge) && !excludeNodes.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push([...path, neighbor]);
+        }
+      }
+    }
+    return null;
+  };
+
+  // Find first shortest path
+  const firstPath = bfs();
+  if (!firstPath) return [];
+  paths.push(firstPath);
+
+  // Find alternate paths by excluding edges from previous paths
+  const candidates: { path: string[]; cost: number }[] = [];
+
+  for (let i = 0; i < paths.length && paths.length < k; i++) {
+    const prevPath = paths[i];
+    
+    for (let j = 0; j < prevPath.length - 1; j++) {
+      const spurNode = prevPath[j];
+      const rootPath = prevPath.slice(0, j + 1);
+      
+      const excludeEdges = new Set<string>();
+      const excludeNodes = new Set<string>(rootPath.slice(0, -1));
+      
+      // Exclude edges that share the same root path
+      for (const p of paths) {
+        if (p.slice(0, j + 1).join("-") === rootPath.join("-") && p[j + 1]) {
+          excludeEdges.add(`${spurNode}-${p[j + 1]}`);
+        }
+      }
+      
+      const spurPath = bfsFrom(spurNode, end, excludeEdges, excludeNodes);
+      if (spurPath) {
+        const totalPath = [...rootPath.slice(0, -1), ...spurPath];
+        const cost = calculatePathCost(totalPath);
+        if (!paths.some(p => p.join("-") === totalPath.join("-"))) {
+          candidates.push({ path: totalPath, cost });
+        }
+      }
+    }
+    
+    // Add best candidate
+    candidates.sort((a, b) => a.cost - b.cost);
+    while (candidates.length > 0 && paths.length < k) {
+      const best = candidates.shift()!;
+      if (!paths.some(p => p.join("-") === best.path.join("-"))) {
+        paths.push(best.path);
+      }
+    }
+  }
+
+  return paths;
+}
+
+function bfsFrom(start: string, end: string, excludeEdges: Set<string>, excludeNodes: Set<string>): string[] | null {
   const queue: string[][] = [[start]];
   const visited = new Set<string>([start]);
   while (queue.length > 0) {
@@ -183,7 +272,8 @@ function bfs(start: string, end: string): string[] | null {
     const node = path[path.length - 1];
     if (node === end) return path;
     for (const neighbor of adjacency[node] || []) {
-      if (!visited.has(neighbor)) {
+      const edge = `${node}-${neighbor}`;
+      if (!visited.has(neighbor) && !excludeEdges.has(edge) && !excludeNodes.has(neighbor)) {
         visited.add(neighbor);
         queue.push([...path, neighbor]);
       }
@@ -192,20 +282,47 @@ function bfs(start: string, end: string): string[] | null {
   return null;
 }
 
+function calculatePathCost(path: string[]): number {
+  let cost = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const road = mockRoads.find((r) => r.from_junction === path[i] && r.to_junction === path[i + 1]);
+    cost += road ? (road.length_km / road.speed_limit) * 3600 : 30;
+  }
+  return cost;
+}
+
+function calculateCongestion(path: string[]): { delay: number; junctions: CongestedJunction[] } {
+  const congestedJunctions: CongestedJunction[] = [];
+  let totalDelay = 0;
+  
+  for (const jId of path) {
+    const td = junctionTrafficData[jId];
+    if (td && td.density !== "LOW") {
+      const delay = CONGESTION_DELAYS[td.density];
+      totalDelay += delay;
+      congestedJunctions.push({ id: jId, delay, density: td.density });
+    }
+  }
+  
+  return { delay: totalDelay, junctions: congestedJunctions };
+}
+
+const ROUTE_COLORS = ["#FF0000", "#FFD700", "#3B82F6"];
+
 export function getMockRoute(sourceIdx: number, destIdx: number): RouteResult {
   const sourceId = `J${sourceIdx + 1}`;
   const destId = `J${destIdx + 1}`;
-  const path = bfs(sourceId, destId);
+  const paths = findKShortestPaths(sourceId, destId, 1);
   
-  if (!path) {
+  if (paths.length === 0) {
     return { success: false, path: [], segments: [], total_cost: 0, num_junctions: 0 };
   }
 
+  const path = paths[0];
   const segments = [];
   let totalCost = 0;
   for (let i = 0; i < path.length - 1; i++) {
     const road = mockRoads.find((r) => r.from_junction === path[i] && r.to_junction === path[i + 1]);
-    // Cost = travel time in seconds (distance/speed * 3600)
     const cost = road ? (road.length_km / road.speed_limit) * 3600 : 30;
     totalCost += cost;
     segments.push({
@@ -216,11 +333,74 @@ export function getMockRoute(sourceIdx: number, destIdx: number): RouteResult {
     });
   }
 
+  const congestion = calculateCongestion(path);
+
   return {
     success: true,
     path,
     segments,
     total_cost: Math.round(totalCost * 10) / 10,
     num_junctions: path.length,
+    congestion_delay: congestion.delay,
+    congested_junctions: congestion.junctions,
+    color: ROUTE_COLORS[0],
+    rank: 1,
   };
+}
+
+export function getMockMultipleRoutes(sourceIdx: number, destIdx: number): MultiRouteResult {
+  const sourceId = `J${sourceIdx + 1}`;
+  const destId = `J${destIdx + 1}`;
+  const paths = findKShortestPaths(sourceId, destId, 3);
+  
+  if (paths.length === 0) {
+    return { routes: [] };
+  }
+
+  const routes: RouteResult[] = paths.map((path, index) => {
+    const segments = [];
+    let totalCost = 0;
+    
+    for (let i = 0; i < path.length - 1; i++) {
+      const road = mockRoads.find((r) => r.from_junction === path[i] && r.to_junction === path[i + 1]);
+      const cost = road ? (road.length_km / road.speed_limit) * 3600 : 30;
+      totalCost += cost;
+      segments.push({
+        from_junction: path[i],
+        to_junction: path[i + 1],
+        road_name: road?.name || "Unknown Road",
+        cost: Math.round(cost * 10) / 10,
+      });
+    }
+
+    const congestion = calculateCongestion(path);
+
+    return {
+      success: true,
+      path,
+      segments,
+      total_cost: Math.round(totalCost * 10) / 10,
+      num_junctions: path.length,
+      congestion_delay: congestion.delay,
+      congested_junctions: congestion.junctions,
+      color: ROUTE_COLORS[index] || ROUTE_COLORS[2],
+      rank: index + 1,
+    };
+  });
+
+  return { routes };
+}
+
+// Live density simulation - randomizes density levels
+export function getRandomizedJunctionDensities(): Record<string, DensityLevel> {
+  const result: Record<string, DensityLevel> = {};
+  for (const jId of Object.keys(junctionTrafficData)) {
+    // 60% chance to keep current, 40% chance to change
+    if (Math.random() > 0.4) {
+      result[jId] = junctionTrafficData[jId].density;
+    } else {
+      result[jId] = densities[Math.floor(Math.random() * densities.length)];
+    }
+  }
+  return result;
 }

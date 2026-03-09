@@ -39,12 +39,7 @@ export interface SignalPhase {
   max_green: number;
 }
 
-export interface MapData {
-  region_name: string;
-  junctions: Junction[];
-  roads: Road[];
-  signal_phases: SignalPhase[];
-}
+// MapData is now defined after TurnRestriction at the end of the file
 
 export interface JunctionDetail {
   junction: Junction;
@@ -144,10 +139,39 @@ export interface RouteSegment {
   cost: number;
 }
 
+export interface CongestedJunction {
+  id: string;
+  delay: number;
+  density: DensityLevel;
+}
+
 export interface RouteResult {
   success: boolean;
   path: string[];
   segments: RouteSegment[];
   total_cost: number;
   num_junctions: number;
+  congestion_delay?: number;
+  congested_junctions?: CongestedJunction[];
+  color?: string;
+  rank?: number;
+}
+
+export interface MultiRouteResult {
+  routes: RouteResult[];
+}
+
+export interface TurnRestriction {
+  junction_id: string;
+  from_road: string;
+  to_road: string;
+  restriction_type: "no_left" | "no_right" | "no_uturn";
+}
+
+export interface MapData {
+  region_name: string;
+  junctions: Junction[];
+  roads: Road[];
+  signal_phases: SignalPhase[];
+  turn_restrictions?: TurnRestriction[];
 }

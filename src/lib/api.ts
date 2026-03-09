@@ -1,5 +1,5 @@
-import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealth, getMockNetworkStatus, getMockRoute } from "./mock-data";
-import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus, SignalOptimizationRequest, SignalOptimizationResult, NetworkStatus, RouteRequest, RouteResult } from "./types";
+import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealth, getMockNetworkStatus, getMockRoute, getMockMultipleRoutes } from "./mock-data";
+import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus, SignalOptimizationRequest, SignalOptimizationResult, NetworkStatus, RouteRequest, RouteResult, MultiRouteResult } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
 
@@ -112,5 +112,18 @@ export async function findRoute(request: RouteRequest): Promise<RouteResult> {
     });
   } catch {
     return getMockRoute(request.source, request.destination);
+  }
+}
+
+// Multiple Routes Finding
+export async function findMultipleRoutes(request: RouteRequest): Promise<MultiRouteResult> {
+  try {
+    return await apiFetch<MultiRouteResult>("/api/get_routes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    return getMockMultipleRoutes(request.source, request.destination);
   }
 }
