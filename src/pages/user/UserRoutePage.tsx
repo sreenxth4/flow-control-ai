@@ -121,7 +121,8 @@ const UserRoutePage = () => {
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
       
-      const matchingRoute = routeRoadSets.find(r => r.set.has(`${road.from_junction}-${road.to_junction}`));
+      // Only show the selected route on the map
+      const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
       const isOneWay = ONE_WAY_ROADS.includes(road.id);
 
       let lineColor: string;
@@ -131,8 +132,8 @@ const UserRoutePage = () => {
 
       if (matchingRoute) {
         lineColor = matchingRoute.color;
-        lineWeight = matchingRoute.isSelected ? 8 : 5;
-        lineOpacity = matchingRoute.isSelected ? 1 : 0.7;
+        lineWeight = 8;
+        lineOpacity = 1;
       } else if (hasRoutes) {
         // Dim all non-route roads when routes are displayed
         lineColor = "#6b7280";
