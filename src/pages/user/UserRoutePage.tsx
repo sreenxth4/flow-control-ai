@@ -28,11 +28,24 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
-// Selected route is always green; unselected get muted amber/gray
-const SELECTED_ROUTE_COLOR = "#22c55e";
-const UNSELECTED_ROUTE_COLORS = ["#f59e0b", "#94a3b8"];
-const ROUTE_COLORS_LEGEND = ["#22c55e", "#f59e0b", "#87CEEB"];
-const ROUTE_LABELS = ["Fastest", "Alternate", "Longer"];
+// Route colors assigned by travel time: green=fastest, skyblue=middle, red=slowest
+const getRouteColorByRank = (routes: { total_cost: number; congestion_delay?: number }[]) => {
+  if (routes.length <= 1) return ["#22c55e"];
+  const totalTimes = routes.map((r, i) => ({ i, time: r.total_cost + (r.congestion_delay || 0) }));
+  totalTimes.sort((a, b) => a.time - b.time);
+  const colorMap: Record<number, string> = {};
+  colorMap[totalTimes[0].i] = "#22c55e"; // green = fastest
+  if (totalTimes.length === 2) {
+    colorMap[totalTimes[1].i] = "#ef4444"; // red = slowest
+  } else {
+    colorMap[totalTimes[totalTimes.length - 1].i] = "#ef4444"; // red = slowest
+    for (let k = 1; k < totalTimes.length - 1; k++) {
+      colorMap[totalTimes[k].i] = "#87CEEB"; // skyblue = middle
+    }
+  }
+  return routes.map((_, i) => colorMap[i]);
+};
+const ROUTE_LABELS = ["Route 1", "Route 2", "Route 3"];
 
 const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
 const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name || id;
