@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { fetchMapData, fetchJunctionDetail, fetchPerformance, fetchHealth, fetchNetworkStatus, findRoute, optimizeSignals } from "@/lib/api";
+import { fetchMapData, fetchJunctionDetail, fetchPerformance, fetchHealth, fetchNetworkStatus, findRoute, optimizeSignals, findMultipleRoutes } from "@/lib/api";
 import type { RouteRequest, SignalOptimizationRequest } from "@/lib/types";
 
 export function useMapData() {
@@ -50,6 +50,12 @@ export function useNetworkStatus() {
 export function useFindRoute() {
   return useMutation({
     mutationFn: (request: RouteRequest) => findRoute(request),
+  });
+}
+
+export function useFindMultipleRoutes() {
+  return useMutation({
+    mutationFn: (request: RouteRequest) => findMultipleRoutes(request),
   });
 }
 

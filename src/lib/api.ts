@@ -114,3 +114,16 @@ export async function findRoute(request: RouteRequest): Promise<RouteResult> {
     return getMockRoute(request.source, request.destination);
   }
 }
+
+// Multiple Routes Finding
+export async function findMultipleRoutes(request: RouteRequest): Promise<MultiRouteResult> {
+  try {
+    return await apiFetch<MultiRouteResult>("/api/get_routes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    return getMockMultipleRoutes(request.source, request.destination);
+  }
+}
