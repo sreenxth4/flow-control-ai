@@ -28,7 +28,10 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
-const ROUTE_COLORS = ["#22c55e", "#f59e0b", "#87CEEB"];
+// Selected route is always green; unselected get muted amber/gray
+const SELECTED_ROUTE_COLOR = "#22c55e";
+const UNSELECTED_ROUTE_COLORS = ["#f59e0b", "#94a3b8"];
+const ROUTE_COLORS_LEGEND = ["#22c55e", "#f59e0b", "#87CEEB"];
 const ROUTE_LABELS = ["Fastest", "Alternate", "Longer"];
 
 const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
@@ -89,9 +92,12 @@ const UserRoutePage = () => {
       if (route.success && route.path.length > 1) {
         for (let i = 0; i < route.path.length - 1; i++) {
           set.add(`${route.path[i]}-${route.path[i + 1]}`);
+          set.add(`${route.path[i + 1]}-${route.path[i]}`); // match both directions
         }
       }
-      return { set, color: route.color || ROUTE_COLORS[idx], isSelected: idx === selectedRouteIndex };
+      const isSelected = idx === selectedRouteIndex;
+      const color = isSelected ? SELECTED_ROUTE_COLOR : (UNSELECTED_ROUTE_COLORS[idx > selectedRouteIndex ? idx - 1 : idx] || "#94a3b8");
+      return { set, color, isSelected };
     });
 
     const hasRoutes = routes.length > 0;
@@ -299,7 +305,7 @@ const UserRoutePage = () => {
                         <div className="flex items-center gap-2">
                           <span 
                             className="h-3 w-3 rounded-full" 
-                            style={{ backgroundColor: route.color || ROUTE_COLORS[idx] }} 
+                            style={{ backgroundColor: idx === selectedRouteIndex ? SELECTED_ROUTE_COLOR : ROUTE_COLORS_LEGEND[idx] }} 
                           />
                           <span className="text-sm font-medium">{ROUTE_LABELS[idx]}</span>
                         </div>
@@ -354,7 +360,7 @@ const UserRoutePage = () => {
                 </div>
                 <div className="mt-2 border-t pt-2">
                   <p className="font-medium mb-1">Route Colors:</p>
-                  {ROUTE_COLORS.map((color, idx) => (
+                  {ROUTE_COLORS_LEGEND.map((color, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <span className="h-1 w-4 rounded" style={{ backgroundColor: color }} />
                       <span>{ROUTE_LABELS[idx]}</span>
@@ -371,7 +377,7 @@ const UserRoutePage = () => {
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <span 
                       className="h-3 w-3 rounded-full" 
-                      style={{ backgroundColor: selectedRoute.color || ROUTE_COLORS[selectedRouteIndex] }} 
+                      style={{ backgroundColor: SELECTED_ROUTE_COLOR }} 
                     />
                     {ROUTE_LABELS[selectedRouteIndex]} Route
                   </CardTitle>
