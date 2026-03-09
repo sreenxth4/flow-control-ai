@@ -197,21 +197,26 @@ const UserRoutePage = () => {
       // Use live density
       const currentDensity = liveDensities[j.id] || j.density;
       const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : currentDensity ? DENSITY_COLORS[currentDensity] : "#CCCCCC";
-      const radius = isSource || isDest ? 16 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
+      const radius = isSource || isDest ? 20 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
 
-      // Create pulsing div icon
+      // Source/destination get a prominent pulsing marker with label
       const markerIcon = L.divIcon({
         className: 'junction-marker',
-        html: `<div class="junction-circle animate-density-pulse" style="
-          width: ${radius * 2}px; 
-          height: ${radius * 2}px; 
-          background-color: ${color}; 
-          border: ${isSource || isDest ? 3 : isOnRoute ? 3 : 1.5}px solid ${isOnRoute ? '#FFD700' : '#fff'};
-          border-radius: 50%;
-          opacity: 0.9;
-        "></div>`,
-        iconSize: [radius * 2, radius * 2],
-        iconAnchor: [radius, radius],
+        html: `<div style="position:relative; display:flex; align-items:center; justify-content:center;">
+          <div class="junction-circle ${isSource || isDest ? 'animate-pulse' : 'animate-density-pulse'}" style="
+            width: ${radius * 2}px; 
+            height: ${radius * 2}px; 
+            background-color: ${color}; 
+            border: ${isSource || isDest ? 4 : isOnRoute ? 3 : 1.5}px solid ${isSource ? '#60a5fa' : isDest ? '#f87171' : isOnRoute ? '#FFD700' : '#fff'};
+            border-radius: 50%;
+            opacity: ${isSource || isDest ? 1 : 0.9};
+            box-shadow: ${isSource ? '0 0 12px 4px rgba(59,130,246,0.5)' : isDest ? '0 0 12px 4px rgba(239,68,68,0.5)' : 'none'};
+          "></div>
+          ${isSource ? '<div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#3b82f6;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;">START</div>' : ''}
+          ${isDest ? '<div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;">END</div>' : ''}
+        </div>`,
+        iconSize: [radius * 2, radius * 2 + (isSource || isDest ? 22 : 0)],
+        iconAnchor: [radius, radius + (isSource || isDest ? 0 : 0)],
       });
 
       const marker = L.marker([j.lat, j.lng], { icon: markerIcon });
