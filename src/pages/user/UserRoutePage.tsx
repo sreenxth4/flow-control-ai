@@ -195,8 +195,8 @@ const UserRoutePage = () => {
       const isDest = destination === j.id;
       const isOnRoute = allRoutePaths.has(j.id);
       
-      // Use live density
-      const currentDensity = liveDensities[j.id] || j.density;
+      // Use real-time density from backend
+      const currentDensity = j.density;
       const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : currentDensity ? DENSITY_COLORS[currentDensity] : "#CCCCCC";
       const radius = isSource || isDest ? 20 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
 
