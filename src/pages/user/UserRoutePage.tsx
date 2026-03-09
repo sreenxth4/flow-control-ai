@@ -28,7 +28,7 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
-// Route colors assigned by travel time: green=fastest, skyblue=middle, red=slowest
+// Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
 const getRouteColorByRank = (routes: { total_cost: number; congestion_delay?: number }[]) => {
   if (routes.length <= 1) return ["#22c55e"];
   const totalTimes = routes.map((r, i) => ({ i, time: r.total_cost + (r.congestion_delay || 0) }));
@@ -36,7 +36,7 @@ const getRouteColorByRank = (routes: { total_cost: number; congestion_delay?: nu
   const colorMap: Record<number, string> = {};
   colorMap[totalTimes[0].i] = "#22c55e"; // green = fastest
   if (totalTimes.length === 2) {
-    colorMap[totalTimes[1].i] = "#ef4444"; // red = slowest
+    colorMap[totalTimes[1].i] = "#ef4444";
   } else {
     colorMap[totalTimes[totalTimes.length - 1].i] = "#ef4444"; // red = slowest
     for (let k = 1; k < totalTimes.length - 1; k++) {
@@ -45,7 +45,22 @@ const getRouteColorByRank = (routes: { total_cost: number; congestion_delay?: nu
   }
   return routes.map((_, i) => colorMap[i]);
 };
-const ROUTE_LABELS = ["Route 1", "Route 2", "Route 3"];
+const getRouteLabelByRank = (routes: { total_cost: number; congestion_delay?: number }[]) => {
+  if (routes.length <= 1) return ["Fastest"];
+  const totalTimes = routes.map((r, i) => ({ i, time: r.total_cost + (r.congestion_delay || 0) }));
+  totalTimes.sort((a, b) => a.time - b.time);
+  const labelMap: Record<number, string> = {};
+  labelMap[totalTimes[0].i] = "Fastest";
+  if (totalTimes.length === 2) {
+    labelMap[totalTimes[1].i] = "Slowest";
+  } else {
+    labelMap[totalTimes[totalTimes.length - 1].i] = "Slowest";
+    for (let k = 1; k < totalTimes.length - 1; k++) {
+      labelMap[totalTimes[k].i] = "Moderate";
+    }
+  }
+  return routes.map((_, i) => labelMap[i]);
+};
 
 const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
 const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name || id;
@@ -321,9 +336,9 @@ const UserRoutePage = () => {
                             className="h-3 w-3 rounded-full" 
                             style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[idx] : "#6b7280" }} 
                           />
-                          <span className="text-sm font-medium">{ROUTE_LABELS[idx]}</span>
+                          <span className="text-sm font-medium">{getRouteLabelByRank(routeResult.routes)[idx]}</span>
                         </div>
-                        <span className="text-sm font-mono font-bold">{route.total_cost.toFixed(1)}s</span>
+                        <span className="text-sm font-mono font-bold">{(route.total_cost + (route.congestion_delay || 0)).toFixed(1)}s</span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{route.num_junctions} junctions</span>
@@ -399,7 +414,7 @@ const UserRoutePage = () => {
                       className="h-3 w-3 rounded-full" 
                       style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[selectedRouteIndex] : "#22c55e" }} 
                     />
-                    {ROUTE_LABELS[selectedRouteIndex]} Route
+                    {routeResult ? getRouteLabelByRank(routeResult.routes)[selectedRouteIndex] : "Route"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-xs">
