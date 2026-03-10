@@ -13,8 +13,8 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   HIGH: "#FF0000",
 };
 
-// Speed colors for roads
-const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
+// Road colors: BLACK for major (50+ km/h), GREY for local (40 km/h)
+const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
 // Marker size by vehicle count
 const getMarkerSize = (vehicleCount?: number) => {
@@ -62,17 +62,15 @@ const UserMapPage = () => {
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
 
-      const isOneWay = ONE_WAY_ROADS.includes(road.id);
-      const speedColor = getSpeedColor(road.speed_limit);
+      const roadColor = getRoadColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;
 
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
         {
-          color: speedColor,
+          color: roadColor,
           weight,
           opacity: 0.7,
-          dashArray: isOneWay ? "8 6" : undefined,
         }
       );
       
