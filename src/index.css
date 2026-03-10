@@ -194,3 +194,15 @@
   background: none !important;
   border: none !important;
 }
+
+/* Style Leaflet tooltips and popups to remove black box appearance */
+.leaflet-tooltip {
+  @apply bg-card text-card-foreground rounded-lg shadow-lg border border-border;
+}
+
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+  border-top-color: hsl(var(--card)) !important;
+}
