@@ -71,8 +71,17 @@ const UserMapPage = () => {
           color: roadColor,
           weight,
           opacity: 0.7,
-          interactive: false,
         }
+      );
+      
+      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
+      line.bindPopup(
+        `<div style="min-width:160px">
+          <strong>${road.name}</strong><br/>
+          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
+          Length: ${(road.length_km * 1000).toFixed(0)}m | Speed: ${road.speed_limit} km/h<br/>
+          Lanes: ${road.lanes} | Base Cost: ${baseCost}s
+        </div>`
       );
       layers.addLayer(line);
     });

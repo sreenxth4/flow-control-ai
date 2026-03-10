@@ -155,10 +155,31 @@ export function TrafficMap({
           weight: lineWeight,
           opacity: lineOpacity,
           dashArray: isOneWay && !isOnRoute && !multiRouteMatch ? "8 6" : undefined,
-          interactive: false,
         }
       );
+
+      // Road details tooltip on hover
+      const lengthM = (road.length_km * 1000).toFixed(0);
+      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
+      line.bindTooltip(
+        `<div style="min-width:140px; font-size: 12px;">
+          <strong>${road.name}</strong><br/>
+          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
+          📏 ${lengthM}m | 🚗 ${road.speed_limit} km/h<br/>
+          🛣️ ${road.lanes} lanes | ⏱️ ${baseCost}s
+        </div>`,
+        { sticky: true, direction: "top" }
+      );
       
+      // Popup on click with more details
+      line.bindPopup(
+        `<div style="min-width:160px">
+          <strong>${road.name}</strong><br/>
+          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
+          Length: ${lengthM}m | Speed: ${road.speed_limit} km/h<br/>
+          Lanes: ${road.lanes} | Base Cost: ${baseCost}s
+        </div>`
+      );
       layers.addLayer(line);
 
       // Add direction arrow at 60% along the line
