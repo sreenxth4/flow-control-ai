@@ -187,12 +187,14 @@
 }
 
 /* Remove default Leaflet divIcon styling */
+.leaflet-div-icon,
 .road-arrow,
 .junction-marker,
 .junction-label,
 .turn-restriction {
   background: none !important;
   border: none !important;
+  box-shadow: none !important;
 }
 
 /* Style Leaflet tooltips and popups to remove black box appearance */
