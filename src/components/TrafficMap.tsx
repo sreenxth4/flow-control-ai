@@ -171,15 +171,6 @@ export function TrafficMap({
         { sticky: true, direction: "top" }
       );
       
-      // Popup on click with more details
-      line.bindPopup(
-        `<div style="min-width:160px">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          Length: ${lengthM}m | Speed: ${road.speed_limit} km/h<br/>
-          Lanes: ${road.lanes} | Base Cost: ${baseCost}s
-        </div>`
-      );
       layers.addLayer(line);
 
       // Add direction arrow at 60% along the line
