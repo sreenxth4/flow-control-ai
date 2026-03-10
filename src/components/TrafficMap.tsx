@@ -157,19 +157,6 @@ export function TrafficMap({
           dashArray: isOneWay && !isOnRoute && !multiRouteMatch ? "8 6" : undefined,
         }
       );
-
-      // Road details tooltip on hover
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
-      line.bindTooltip(
-        `<div style="min-width:140px; font-size: 12px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m | 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes | ⏱️ ${baseCost}s
-        </div>`,
-        { sticky: true, direction: "top" }
-      );
       
       layers.addLayer(line);
 
