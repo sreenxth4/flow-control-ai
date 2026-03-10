@@ -155,6 +155,7 @@ export function TrafficMap({
           weight: lineWeight,
           opacity: lineOpacity,
           dashArray: isOneWay && !isOnRoute && !multiRouteMatch ? "8 6" : undefined,
+          interactive: false,
         }
       );
       

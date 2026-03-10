@@ -185,3 +185,12 @@
 .junction-circle {
   transition: all 0.3s ease;
 }
+
+/* Remove default Leaflet divIcon styling */
+.road-arrow,
+.junction-marker,
+.junction-label,
+.turn-restriction {
+  background: none !important;
+  border: none !important;
+}
