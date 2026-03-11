@@ -1,18 +1,17 @@
 import { useMapData } from "@/hooks/use-map-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DensityBadge } from "@/components/DensityBadge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, RefreshCw, AlertTriangle } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { mockJunctions } from "@/lib/mock-data";
 import type { DensityLevel } from "@/lib/types";
 
 const UserConditionsPage = () => {
-  const { data: mapData, isLoading, isError, refetch } = useMapData();
+  const { data: mapData, isLoading } = useMapData();
 
-  const junctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
+  const junctions = mapData?.junctions || [];
 
   const analyzed = junctions.filter((j) => !!j.density).length;
   const countByDensity = (level: DensityLevel) => junctions.filter((j) => j.density === level).length;
@@ -37,20 +36,6 @@ const UserConditionsPage = () => {
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="text-center space-y-3">
-          <AlertTriangle className="mx-auto h-8 w-8 text-destructive" />
-          <p className="text-sm text-muted-foreground">Failed to load traffic conditions</p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="mr-1 h-3 w-3" /> Retry
-          </Button>
         </div>
       </div>
     );

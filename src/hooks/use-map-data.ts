@@ -8,8 +8,6 @@ export function useMapData() {
     queryFn: fetchMapData,
     refetchInterval: 60_000,
     staleTime: 30_000,
-    retry: 2,
-    retryDelay: 3000,
   });
 }
 
@@ -19,7 +17,6 @@ export function useJunctionDetail(id: string | null) {
     queryFn: () => fetchJunctionDetail(id!),
     enabled: !!id,
     staleTime: 30_000,
-    retry: 1,
   });
 }
 
@@ -29,7 +26,6 @@ export function usePerformance() {
     queryFn: fetchPerformance,
     refetchInterval: 60_000,
     staleTime: 30_000,
-    retry: 1,
   });
 }
 
@@ -39,7 +35,6 @@ export function useHealth() {
     queryFn: fetchHealth,
     refetchInterval: 30_000,
     staleTime: 15_000,
-    retry: 1,
   });
 }
 
@@ -49,7 +44,6 @@ export function useNetworkStatus() {
     queryFn: fetchNetworkStatus,
     refetchInterval: 60_000,
     staleTime: 30_000,
-    retry: 1,
   });
 }
 
