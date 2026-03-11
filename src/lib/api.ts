@@ -51,8 +51,8 @@ const BASE = () => getApiBase();
 // Legacy apiFetch kept for submitVideoDetection (throws on failure)
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const result = await safeFetchJson<T>(`${BASE()}${path}`, options);
-  if (!result.ok) throw new Error(result.error);
-  return result.data;
+  if (!result.ok) throw new Error((result as { ok: false; error: string }).error);
+  return (result as { ok: true; data: T }).data;
 }
 
 export async function fetchMapData(): Promise<MapData> {
