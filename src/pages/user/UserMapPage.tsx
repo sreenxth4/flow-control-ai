@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useMapData } from "@/hooks/use-map-data";
 import { MockDataBanner } from "@/components/MockDataBanner";
 import { isUsingMockData } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { DensityLevel } from "@/lib/types";
@@ -22,11 +23,8 @@ const getMarkerSize = (vehicleCount?: number) => {
   return Math.min(35, 12 + count * 0.8);
 };
 
-// One-way roads
-const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
-
 const UserMapPage = () => {
-  const { data } = useMapData();
+  const { data, isLoading } = useMapData();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
@@ -48,16 +46,19 @@ const UserMapPage = () => {
     return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
   }, []);
 
-  // Update markers + roads
+  // Update markers + roads (null-safe)
   useEffect(() => {
     const layers = layersRef.current;
     if (!layers || !data) return;
     layers.clearLayers();
 
-    const junctionMap = new Map(data.junctions.map((j) => [j.id, j]));
+    const junctions = Array.isArray(data.junctions) ? data.junctions : [];
+    const roads = Array.isArray(data.roads) ? data.roads : [];
+
+    const junctionMap = new Map(junctions.map((j) => [j.id, j]));
 
     // Roads
-    data.roads.forEach((road) => {
+    roads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
@@ -87,7 +88,7 @@ const UserMapPage = () => {
     });
 
     // Junctions
-    data.junctions.forEach((j) => {
+    junctions.forEach((j) => {
       const color = j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
       const radius = getMarkerSize(j.vehicle_count);
       
@@ -113,6 +114,14 @@ const UserMapPage = () => {
       layers.addLayer(marker);
     });
   }, [data]);
+
+  if (isLoading) {
+    return (
+      <div className="relative h-full w-full">
+        <Skeleton className="h-full w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-full w-full">
