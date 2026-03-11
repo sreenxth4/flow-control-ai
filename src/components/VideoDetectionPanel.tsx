@@ -41,6 +41,7 @@ interface AnalysisResult {
   density: DensityLevel;
   processingTime: number;
   averageFps: number;
+  averageDwellTime: number;
   timestamp: string;
 }
 
