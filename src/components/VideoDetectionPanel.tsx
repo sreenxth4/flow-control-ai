@@ -41,6 +41,7 @@ interface AnalysisResult {
   density: DensityLevel;
   processingTime: number;
   averageFps: number;
+  averageDwellTime: number;
   timestamp: string;
 }
 
@@ -53,7 +54,7 @@ interface JunctionStatus {
   pcu: number;
 }
 
-// PCU weights (Indian Roads Congress standard)
+// PCU weights (Indian Roads Congress standard) - used only for mock fallback
 const PCU_WEIGHTS: Record<string, number> = {
   cars: 1.0, bikes: 0.5, autos: 1.0, buses: 3.0, trucks: 3.0, cycles: 0.3,
 };
@@ -163,24 +164,24 @@ export function VideoDetectionPanel() {
 
     try {
       const res = await submitVideoDetection(selectedJunction, file, 5);
-      // Parse results from API
-      const vehicleTotals: Record<string, number> = {};
-      res.detections_per_frame.forEach((f) => {
-        Object.entries(f.vehicles).forEach(([type, count]) => {
-          vehicleTotals[type] = (vehicleTotals[type] || 0) + count;
-        });
-      });
+
+      // Use road_density_analysis as the ONLY authoritative source for headline metrics.
+      // Do NOT sum detections_per_frame — that inflates counts (per-frame != unique vehicles).
+      const rda = (res as any).road_density_analysis;
+      const dist = rda?.vehicle_type_distribution;
+
       const vehicles = {
-        cars: vehicleTotals["car"] || vehicleTotals["cars"] || 0,
-        bikes: vehicleTotals["bike"] || vehicleTotals["bikes"] || vehicleTotals["motorcycle"] || 0,
-        autos: vehicleTotals["auto"] || vehicleTotals["autos"] || vehicleTotals["auto_rickshaw"] || 0,
-        buses: vehicleTotals["bus"] || vehicleTotals["buses"] || 0,
-        trucks: vehicleTotals["truck"] || vehicleTotals["trucks"] || 0,
-        cycles: vehicleTotals["cycle"] || vehicleTotals["cycles"] || vehicleTotals["bicycle"] || 0,
+        cars: dist?.car ?? 0,
+        bikes: dist?.bike ?? 0,
+        autos: dist?.auto ?? 0,
+        buses: dist?.bus ?? 0,
+        trucks: dist?.truck ?? 0,
+        cycles: dist?.cycle ?? 0,
       };
-      const totalVehicles = Object.values(vehicles).reduce((a, b) => a + b, 0);
-      const totalPCU = Math.round(computePCU(vehicles) * 10) / 10;
-      const density = classifyDensity(totalPCU);
+      const totalVehicles: number = rda?.total_vehicles ?? 0;
+      const totalPCU: number = rda?.total_pcu ?? 0;
+      const density: DensityLevel = rda?.traffic_density ?? "LOW";
+      const avgDwell: number = rda?.average_dwell_time_seconds ?? 0;
 
       const analysisResult: AnalysisResult = {
         junctionId: selectedJunction,
@@ -190,6 +191,7 @@ export function VideoDetectionPanel() {
         density,
         processingTime: res.processing_time_seconds,
         averageFps: res.average_processing_fps,
+        averageDwellTime: avgDwell,
         timestamp: new Date().toISOString(),
       };
       setResult(analysisResult);
@@ -203,7 +205,7 @@ export function VideoDetectionPanel() {
       );
       toast.success(`Analysis complete for ${JUNCTION_CAMERAS.find((j) => j.id === selectedJunction)?.name}`);
     } catch {
-      // Mock fallback
+      // Mock fallback — uses local PCU calculation only when backend is unavailable
       const mockVehicles = {
         cars: Math.floor(Math.random() * 40) + 10,
         bikes: Math.floor(Math.random() * 30) + 5,
@@ -223,6 +225,7 @@ export function VideoDetectionPanel() {
         density,
         processingTime: Math.round((elapsed + Math.random() * 5) * 10) / 10,
         averageFps: Math.round((4 + Math.random() * 2) * 10) / 10,
+        averageDwellTime: 0,
         timestamp: new Date().toISOString(),
       };
       setResult(mockResult);
