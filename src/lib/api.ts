@@ -13,14 +13,7 @@ let usingMockData = false;
 export const isUsingMockData = () => usingMockData;
 
 // Shared safe fetch helper — never throws into render
-export interface SafeResult<T> {
-  ok: true;
-  data: T;
-} | {
-  ok: false;
-  error: string;
-  status?: number;
-}
+export type SafeResult<T> = { ok: true; data: T } | { ok: false; error: string; status?: number };
 
 export async function safeFetchJson<T>(url: string, options?: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string; status?: number }> {
   try {
