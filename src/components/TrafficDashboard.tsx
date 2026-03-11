@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DensityBadge } from "@/components/DensityBadge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMapData, usePerformance, useHealth } from "@/hooks/use-map-data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock, RefreshCw, AlertTriangle } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { DensityLevel, Junction } from "@/lib/types";
@@ -28,9 +29,9 @@ const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount
 const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
 
 export function TrafficDashboard() {
-  const { data: mapData, isLoading: mapLoading } = useMapData();
-  const { data: perf, isLoading: perfLoading } = usePerformance();
-  const { data: health, isLoading: healthLoading } = useHealth();
+  const { data: mapData, isLoading: mapLoading, isError: mapError, refetch: refetchMap } = useMapData();
+  const { data: perf, isLoading: perfLoading, isError: perfError, refetch: refetchPerf } = usePerformance();
+  const { data: health, isLoading: healthLoading, isError: healthError, refetch: refetchHealth } = useHealth();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -59,11 +60,14 @@ export function TrafficDashboard() {
     if (!layers || !mapData) return;
     layers.clearLayers();
 
+    const junctions = Array.isArray(mapData.junctions) ? mapData.junctions : [];
+    const roads = Array.isArray(mapData.roads) ? mapData.roads : [];
+
     const junctionMap = new Map<string, Junction>();
-    mapData.junctions.forEach((j) => junctionMap.set(j.id, j));
+    junctions.forEach((j) => junctionMap.set(j.id, j));
 
     // Roads
-    mapData.roads.forEach((road) => {
+    roads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
@@ -95,7 +99,7 @@ export function TrafficDashboard() {
     });
 
     // Junctions
-    mapData.junctions.forEach((j) => {
+    junctions.forEach((j) => {
       const color = j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
       const radius = getMarkerSize(j.vehicle_count);
 
@@ -112,13 +116,14 @@ export function TrafficDashboard() {
     });
   }, [mapData]);
 
-  // Group signal phases by junction
-  const phasesByJunction = mapData
-    ? mapData.junctions.map((j) => ({
-        junction: j,
-        phases: mapData.signal_phases.filter((sp) => sp.junction_id === j.id),
-      }))
-    : [];
+  // Null-safe signal phases grouping
+  const junctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
+  const signalPhases = Array.isArray(mapData?.signal_phases) ? mapData.signal_phases : [];
+
+  const phasesByJunction = junctions.map((j) => ({
+    junction: j,
+    phases: signalPhases.filter((sp) => sp.junction_id === j.id),
+  }));
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -139,6 +144,10 @@ export function TrafficDashboard() {
           <CardContent>
             {mapLoading ? (
               <Skeleton className="h-40" />
+            ) : mapError ? (
+              <ErrorRetry message="Failed to load signal data" onRetry={() => refetchMap()} />
+            ) : phasesByJunction.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No signal phase data available</p>
             ) : (
               <Accordion type="multiple" className="w-full">
                 {phasesByJunction.map(({ junction, phases }) => (
@@ -166,7 +175,7 @@ export function TrafficDashboard() {
                               <TableCell className="text-sm">{(sp.phase_name ?? "").replace(junction.name + " ", "")}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {sp.green_roads.map((r) => (
+                                  {(Array.isArray(sp.green_roads) ? sp.green_roads : []).map((r) => (
                                     <Badge key={r} variant="outline" className="text-xs">{r}</Badge>
                                   ))}
                                 </div>
@@ -197,6 +206,8 @@ export function TrafficDashboard() {
             <CardContent>
               {healthLoading ? (
                 <Skeleton className="h-24" />
+              ) : healthError ? (
+                <ErrorRetry message="Health check failed (CORS/network)" onRetry={() => refetchHealth()} />
               ) : health ? (
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
@@ -238,30 +249,34 @@ export function TrafficDashboard() {
             <CardContent>
               {perfLoading ? (
                 <Skeleton className="h-24" />
+              ) : perfError ? (
+                <ErrorRetry message="Failed to load performance data" onRetry={() => refetchPerf()} />
               ) : perf ? (
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Frames</span>
-                    <span className="font-medium text-foreground">{perf.summary.total_frames}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? "N/A"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Average FPS</span>
-                    <span className="font-medium text-foreground">{perf.summary.average_fps}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? "N/A"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Processing Time</span>
                     <span className="flex items-center gap-1 font-medium text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {perf.summary.total_time}s
+                      {perf.summary?.total_time ?? "N/A"}s
                     </span>
                   </div>
                   {/* Breakdown bar */}
-                  <div className="mt-2 space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
-                    <PerfBar label="Detection" value={perf.performance_profile.detect_time} total={perf.performance_profile.total_time} />
-                    <PerfBar label="Tracking" value={perf.performance_profile.track_time} total={perf.performance_profile.total_time} />
-                    <PerfBar label="Analysis" value={perf.performance_profile.analyze_time} total={perf.performance_profile.total_time} />
-                  </div>
+                  {perf.performance_profile && (
+                    <div className="mt-2 space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
+                      <PerfBar label="Detection" value={perf.performance_profile.detect_time ?? 0} total={perf.performance_profile.total_time ?? 1} />
+                      <PerfBar label="Tracking" value={perf.performance_profile.track_time ?? 0} total={perf.performance_profile.total_time ?? 1} />
+                      <PerfBar label="Analysis" value={perf.performance_profile.analyze_time ?? 0} total={perf.performance_profile.total_time ?? 1} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No detection run yet</p>
@@ -288,6 +303,18 @@ function PerfBar({ label, value, total }: { label: string; value: number; total:
       <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-secondary">
         <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
       </div>
+    </div>
+  );
+}
+
+function ErrorRetry({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-4 text-center">
+      <AlertTriangle className="h-5 w-5 text-destructive" />
+      <p className="text-sm text-muted-foreground">{message}</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        <RefreshCw className="mr-1 h-3 w-3" /> Retry
+      </Button>
     </div>
   );
 }
