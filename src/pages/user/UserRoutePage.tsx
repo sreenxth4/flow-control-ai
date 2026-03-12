@@ -235,18 +235,36 @@ const UserRoutePage = () => {
           : currentDensity
             ? DENSITY_COLORS[currentDensity]
             : "#CCCCCC";
-      const radius = isSource || isDest ? 11 : isOnRoute ? 9 : Math.max(7, getMarkerSize(j.vehicle_count));
-      const weight = isSource || isDest ? 3 : isOnRoute ? 3 : 2;
+      const radius = isSource || isDest ? 14 : isOnRoute ? 11 : getMarkerSize(j.vehicle_count);
+      const borderColor = isOnRoute ? "#FFD700" : "#fff";
+      const borderWidth = isSource || isDest ? 3 : isOnRoute ? 3 : 2;
 
-      const marker = L.circleMarker([coords.lat, coords.lng], {
-        radius,
-        fillColor: color,
-        fillOpacity: 0.95,
-        color: isOnRoute ? "#FFD700" : "#ffffff",
-        weight,
+      const markerIcon = L.divIcon({
+        className: "junction-marker",
+        html: `<div class="junction-circle ${!isSource && !isDest ? 'animate-density-pulse' : ''}" style="
+          width: ${radius * 2}px; 
+          height: ${radius * 2}px; 
+          background-color: ${color}; 
+          border: ${borderWidth}px solid ${borderColor};
+          border-radius: 50%;
+          opacity: 0.9;
+        "></div>`,
+        iconSize: [radius * 2, radius * 2],
+        iconAnchor: [radius, radius],
       });
-      const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
-      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${currentDensity || "N/A"}${pcuInfo}</div>`);
+
+      const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
+      const pcuInfo = j.vehicle_count != null && j.total_pcu != null
+        ? `<br/><span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count} &nbsp;|&nbsp; <span style="color:#94a3b8">PCU:</span> ${j.total_pcu}`
+        : "";
+      marker.bindTooltip(
+        `<div style="min-width:140px;">
+          <strong>${j.id}: ${j.name}</strong><br/>
+          <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${currentDensity || "N/A"}</strong>${pcuInfo}
+        </div>`,
+        { direction: "top", offset: [0, -8] }
+      );
+      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/><span style="color:#94a3b8">Density:</span> ${currentDensity || "N/A"}${pcuInfo}</div>`);
       layers.addLayer(marker);
 
       const labelText = (j.name || j.id || "").trim() || j.id;
