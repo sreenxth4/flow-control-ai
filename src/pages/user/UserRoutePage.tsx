@@ -13,6 +13,7 @@ import type { RouteResult, DensityLevel, MultiRouteResult } from "@/lib/types";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@/components/map-styles.css";
 
 // Density colors
 const DENSITY_COLORS: Record<DensityLevel, string> = {

@@ -4,6 +4,7 @@ import { MockDataBanner } from "@/components/MockDataBanner";
 import { isUsingMockData } from "@/lib/api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@/components/map-styles.css";
 import type { DensityLevel } from "@/lib/types";
 
 // Density colors: GREEN/ORANGE/RED

@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import type { Junction, Road, DensityLevel, TurnRestriction } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
-import "./junction-label.css";
+import "./map-styles.css";
 
 // Density colors: GREEN/ORANGE/RED
 const DENSITY_COLORS: Record<DensityLevel, string> = {
