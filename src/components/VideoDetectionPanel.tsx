@@ -181,11 +181,23 @@ export function VideoDetectionPanel() {
       const from = junctionCoordMap.get(road.from_junction);
       const to = junctionCoordMap.get(road.to_junction);
       if (!from || !to) return;
+      const roadColor = getRoadColor(road.speed_limit);
+      const weight = 1.5 + (road.lanes ?? 1) * 0.75;
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
-        { color: getRoadColor(road.speed_limit), weight: 1.5 + (road.lanes ?? 1) * 0.75, opacity: 0.7 }
+        { color: roadColor, weight, opacity: 0.7 }
       );
-      line.bindPopup(`<strong>${road.name}</strong><br/>${road.from_junction} → ${road.to_junction}<br/>Speed: ${road.speed_limit} km/h | Lanes: ${road.lanes}`);
+      const lengthM = (road.length_km * 1000).toFixed(0);
+      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
+      line.bindTooltip(
+        `<div style="min-width:140px;">
+          <strong>${road.name}</strong><br/>
+          <span style="color:#94a3b8">${road.from_junction} → ${road.to_junction}</span><br/>
+          📏 ${lengthM}m &nbsp;|&nbsp; 🚗 ${road.speed_limit} km/h<br/>
+          🛣️ ${road.lanes} lanes &nbsp;|&nbsp; ⏱️ ${baseCost}s
+        </div>`,
+        { sticky: true, direction: "top" }
+      );
       layers.addLayer(line);
     });
 
@@ -214,18 +226,45 @@ export function VideoDetectionPanel() {
       const density = status?.density;
       const color = density ? DENSITY_COLORS[density] : "#CCCCCC";
       const isHighlighted = highlightedJunction === j.id;
+      const radius = isHighlighted ? 16 : 10;
+      const borderWidth = isHighlighted ? 3 : 2;
 
-      const marker = L.circleMarker([coords.lat, coords.lng], {
-        radius: isHighlighted ? 18 : 12,
-        fillColor: color,
-        fillOpacity: isHighlighted ? 1 : 0.85,
-        color: isHighlighted ? "#fff" : "#374151",
-        weight: isHighlighted ? 3 : 1.5,
+      const markerIcon = L.divIcon({
+        className: "junction-marker",
+        html: `<div class="junction-circle ${!isHighlighted ? 'animate-density-pulse' : ''}" style="
+          width: ${radius * 2}px; 
+          height: ${radius * 2}px; 
+          background-color: ${color}; 
+          border: ${borderWidth}px solid ${isHighlighted ? '#fff' : '#fff'};
+          border-radius: 50%;
+          opacity: ${isHighlighted ? 1 : 0.9};
+        "></div>`,
+        iconSize: [radius * 2, radius * 2],
+        iconAnchor: [radius, radius],
       });
-      marker.bindPopup(
-        `<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${density || "Pending"}</div>`
+
+      const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
+      const densityLabel = density || "Pending";
+      marker.bindTooltip(
+        `<div style="min-width:140px;">
+          <strong>${j.id}: ${j.name}</strong><br/>
+          <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${densityLabel}</strong>
+        </div>`,
+        { direction: "top", offset: [0, -8] }
       );
+      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/><span style="color:#94a3b8">Density:</span> ${densityLabel}</div>`);
       layers.addLayer(marker);
+
+      // Junction name label
+      const labelText = (j.name || j.id || "").trim() || j.id;
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelIcon = L.divIcon({
+        className: "junction-name-label",
+        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
+        iconSize: [labelWidth, 20],
+        iconAnchor: [Math.floor(labelWidth / 2), -14],
+      });
+      L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
     });
   }, [statuses, highlightedJunction, mapJunctions, mapData]);
 
