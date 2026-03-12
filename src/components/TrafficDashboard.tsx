@@ -261,7 +261,7 @@ export function TrafficDashboard() {
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Frames</span>
-                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? perf.summary?.total_frames_processed ?? 0}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Average FPS</span>
