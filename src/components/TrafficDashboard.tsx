@@ -261,25 +261,25 @@ export function TrafficDashboard() {
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Frames</span>
-                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? perf.summary?.total_frames_processed ?? 0}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Average FPS</span>
-                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? perf.summary?.average_processing_fps ?? 0}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Processing Time</span>
                     <span className="flex items-center gap-1 font-medium text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {perf.summary?.total_time ?? perf.summary?.processing_time_seconds ?? 0}s
+                      {perf.summary?.total_time ?? 0}s
                     </span>
                   </div>
                   {/* Breakdown bar */}
                   <div className="mt-2 space-y-1.5">
                     <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
-                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? perf.performance_profile?.detect_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
-                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? perf.performance_profile?.track_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
-                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? perf.performance_profile?.analyze_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
+                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
+                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
+                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
                   </div>
                 </div>
               ) : (

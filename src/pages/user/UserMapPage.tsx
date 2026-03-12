@@ -4,6 +4,7 @@ import { MockDataBanner } from "@/components/MockDataBanner";
 import { isUsingMockData } from "@/lib/api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@/components/map-styles.css";
 import type { DensityLevel } from "@/lib/types";
 
 // Density colors: GREEN/ORANGE/RED
@@ -87,17 +88,11 @@ const UserMapPage = () => {
       }
 
       // Validate lat/lng values
-      const latlngs = [[from.lat, from.lng], [to.lat, to.lng]];
-      if (
-        latlngs.some(
-          ([lat, lng]) =>
-            typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)
-        )
-      ) {
-        // eslint-disable-next-line no-console
-        console.warn(`Invalid lat/lng for road ${road.id}:`, latlngs);
+      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) {
+        console.warn(`Invalid lat/lng for road ${road.id}`);
         return;
       }
+      const latlngs: L.LatLngTuple[] = [[from.lat, from.lng], [to.lat, to.lng]];
 
       const roadColor = getRoadColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;
@@ -136,25 +131,41 @@ const UserMapPage = () => {
 
       const currentDensity = j.density;
       const color = currentDensity ? DENSITY_COLORS[currentDensity] : "#CCCCCC";
-      const radius = Math.max(8, getMarkerSize(j.vehicle_count));
+      const radius = getMarkerSize(j.vehicle_count);
 
-      // Reliable junction rendering with vector marker
-      const marker = L.circleMarker([coords.lat, coords.lng], {
-        radius,
-        fillColor: color,
-        fillOpacity: 0.95,
-        color: "#ffffff",
-        weight: 2,
+      const markerIcon = L.divIcon({
+        className: "junction-marker",
+        html: `<div class="junction-circle animate-density-pulse" style="
+          width: ${radius * 2}px; 
+          height: ${radius * 2}px; 
+          background-color: ${color}; 
+          border: 2px solid #fff;
+          border-radius: 50%;
+          opacity: 0.9;
+        "></div>`,
+        iconSize: [radius * 2, radius * 2],
+        iconAnchor: [radius, radius],
       });
+
+      const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
+
       const densityLabel = j.density || "No data";
       const pcuLine = j.vehicle_count != null && j.total_pcu != null
-        ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)`
+        ? `<br/><span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count} &nbsp;|&nbsp; <span style="color:#94a3b8">PCU:</span> ${j.total_pcu}`
         : "";
+      marker.bindTooltip(
+        `<div style="min-width:140px;">
+          <strong>${j.id}: ${j.name}</strong><br/>
+          <span style="color:#94a3b8">Type:</span> ${j.type}<br/>
+          <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${densityLabel}</strong>${pcuLine}
+        </div>`,
+        { direction: "top", offset: [0, -8] }
+      );
       marker.bindPopup(
         `<div style="min-width:160px">
           <strong>${j.id}: ${j.name}</strong><br/>
-          <span style="color:#888">Type:</span> ${j.type}<br/>
-          <span style="color:#888">Density:</span> <strong>${densityLabel}</strong>${pcuLine}
+          <span style="color:#94a3b8">Type:</span> ${j.type}<br/>
+          <span style="color:#94a3b8">Density:</span> <strong>${densityLabel}</strong>${pcuLine}
         </div>`
       );
       layers.addLayer(marker);
@@ -163,9 +174,9 @@ const UserMapPage = () => {
       const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
       const labelIcon = L.divIcon({
         className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.96); color:#111827; border:1px solid rgba(17,24,39,0.15); font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${labelText}</div>`,
+        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
         iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -12],
+        iconAnchor: [Math.floor(labelWidth / 2), -14],
       });
       L.marker([coords.lat, coords.lng], {
         icon: labelIcon,
