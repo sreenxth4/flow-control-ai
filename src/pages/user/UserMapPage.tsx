@@ -87,7 +87,7 @@ const UserMapPage = () => {
       }
 
       // Validate lat/lng values
-      const latlngs = [[from.lat, from.lng], [to.lat, to.lng]];
+      const latlngs: L.LatLngExpression[] = [[from.lat, from.lng], [to.lat, to.lng]];
       if (
         latlngs.some(
           ([lat, lng]) =>

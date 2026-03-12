@@ -277,9 +277,9 @@ export function TrafficDashboard() {
                   {/* Breakdown bar */}
                   <div className="mt-2 space-y-1.5">
                     <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
-                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? perf.performance_profile?.detect_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
-                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? perf.performance_profile?.track_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
-                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? perf.performance_profile?.analyze_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
+                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
+                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
+                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
                   </div>
                 </div>
               ) : (
