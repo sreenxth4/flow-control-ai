@@ -271,7 +271,7 @@ export function TrafficDashboard() {
                     <span className="text-muted-foreground">Processing Time</span>
                     <span className="flex items-center gap-1 font-medium text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {perf.summary?.total_time ?? perf.summary?.processing_time_seconds ?? 0}s
+                      {perf.summary?.total_time ?? 0}s
                     </span>
                   </div>
                   {/* Breakdown bar */}
