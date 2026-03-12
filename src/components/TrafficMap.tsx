@@ -230,7 +230,7 @@ export function TrafficMap({
       const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
       const labelIcon = L.divIcon({
         className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.96); color:#111827; border:1px solid rgba(17,24,39,0.15); font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${labelText}</div>`,
+        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
         iconSize: [labelWidth, 20],
         iconAnchor: [Math.floor(labelWidth / 2), -12],
       });
