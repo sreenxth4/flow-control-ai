@@ -2,6 +2,7 @@ import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealt
 import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus, SignalOptimizationRequest, SignalOptimizationResult, NetworkStatus, RouteRequest, RouteResult, MultiRouteResult } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+let performanceEndpoint: "/api/v1/performance/latest" | "/api/v1/metrics" = "/api/v1/metrics";
 
 let usingMockData = false;
 export const isUsingMockData = () => usingMockData;
@@ -38,8 +39,49 @@ export async function fetchJunctionDetail(id: string): Promise<JunctionDetail | 
 }
 
 export async function fetchPerformance(): Promise<PerformanceData> {
+  const parsePerformancePayload = (payload: any): PerformanceData => {
+    // New backend shape
+    if (payload?.summary && payload?.performance_profile) {
+      return payload as PerformanceData;
+    }
+
+    // Legacy metrics shape fallback
+    const totalFrames = payload?.summary?.total_frames ?? payload?.total_frames_processed ?? payload?.total_frames ?? 0;
+    const averageFps = payload?.summary?.average_fps ?? payload?.average_processing_fps ?? payload?.fps ?? 0;
+    const totalTime = payload?.summary?.total_time ?? payload?.processing_time_seconds ?? 0;
+
+    return {
+      summary: {
+        total_frames: totalFrames,
+        average_fps: averageFps,
+        total_time: totalTime,
+      },
+      performance_profile: {
+        detect_time: payload?.performance_profile?.detect_time ?? 0,
+        track_time: payload?.performance_profile?.track_time ?? 0,
+        analyze_time: payload?.performance_profile?.analyze_time ?? 0,
+        total_time: payload?.performance_profile?.total_time ?? totalTime,
+      },
+    };
+  };
+
   try {
-    return await apiFetch<PerformanceData>("/api/v1/performance/latest");
+    const res = await fetch(`${BASE_URL}${performanceEndpoint}`);
+    if (!res.ok) {
+      if (res.status === 404 && performanceEndpoint === "/api/v1/metrics") {
+        performanceEndpoint = "/api/v1/performance/latest";
+        const fallbackRes = await fetch(`${BASE_URL}${performanceEndpoint}`);
+        if (!fallbackRes.ok) throw new Error(`API ${fallbackRes.status}`);
+        usingMockData = false;
+        const fallbackPayload = await fallbackRes.json();
+        return parsePerformancePayload(fallbackPayload);
+      }
+      throw new Error(`API ${res.status}`);
+    }
+
+    usingMockData = false;
+    const payload = await res.json();
+    return parsePerformancePayload(payload);
   } catch {
     return getMockPerformance();
   }
@@ -47,9 +89,13 @@ export async function fetchPerformance(): Promise<PerformanceData> {
 
 export async function fetchHealth(): Promise<HealthStatus> {
   try {
-    return await apiFetch<HealthStatus>("/healthz");
+    return await apiFetch<HealthStatus>("/api/v1/healthz");
   } catch {
-    return getMockHealth();
+    try {
+      return await apiFetch<HealthStatus>("/healthz");
+    } catch {
+      return getMockHealth();
+    }
   }
 }
 
@@ -124,6 +170,15 @@ export async function findMultipleRoutes(request: RouteRequest): Promise<MultiRo
       body: JSON.stringify(request),
     });
   } catch {
-    return getMockMultipleRoutes(request.source, request.destination);
+    try {
+      const singleRoute = await apiFetch<RouteResult>("/api/get_route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      return { routes: [singleRoute] };
+    } catch {
+      return getMockMultipleRoutes(request.source, request.destination);
+    }
   }
 }

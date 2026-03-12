@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Play, Loader2, Car, Bike, Bus, Truck } from "lucide-react";
 import { submitVideoDetection } from "@/lib/api";
+import { useMapData } from "@/hooks/use-map-data";
 import { DensityBadge } from "@/components/DensityBadge";
 import type { DensityLevel } from "@/lib/types";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { mockJunctions } from "@/lib/mock-data";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Junction camera options - Kukatpally Zone
 const JUNCTION_CAMERAS = [
@@ -69,7 +70,19 @@ function classifyDensity(pcu: number): DensityLevel {
   return "HIGH";
 }
 
+function resolveCoords(junction: any): { lat: number; lng: number } | null {
+  const lat = junction?.lat ?? junction?.latitude;
+  const lng = junction?.lng ?? junction?.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat: Number(lat), lng: Number(lng) };
+}
+
+// Road colors: BLACK for major roads (50+), GREY for local roads (<50)
+const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
+
 export function VideoDetectionPanel() {
+  const queryClient = useQueryClient();
+  const { data: mapData } = useMapData();
   const [selectedJunction, setSelectedJunction] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -86,6 +99,38 @@ export function VideoDetectionPanel() {
       pcu: 0,
     }))
   );
+
+  const mapJunctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
+  const cameraOptions =
+    mapJunctions.length > 0
+      ? mapJunctions.map((j) => ({ id: j.id, name: j.name }))
+      : JUNCTION_CAMERAS;
+
+  // Keep status cards synchronized with persisted backend metrics.
+  useEffect(() => {
+    const liveJunctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
+    if (liveJunctions.length === 0) return;
+
+    setStatuses(
+      JUNCTION_CAMERAS.map((camera) => {
+        const live = liveJunctions.find((j) => j.id === camera.id);
+        const liveUpdatedAt = (live as any)?.live_updated_at;
+        const lastAnalyzed =
+          typeof liveUpdatedAt === "number" && Number.isFinite(liveUpdatedAt)
+            ? new Date(liveUpdatedAt * 1000).toISOString()
+            : null;
+
+        return {
+          junctionId: camera.id,
+          name: camera.name,
+          lastAnalyzed,
+          density: live?.density ?? null,
+          vehicleCount: live?.vehicle_count ?? 0,
+          pcu: live?.total_pcu ?? 0,
+        };
+      })
+    );
+  }, [mapData]);
 
   // Map refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -118,19 +163,58 @@ export function VideoDetectionPanel() {
     return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
   }, []);
 
-  // Update map markers
+  // Update map markers + roads
   useEffect(() => {
     const layers = layersRef.current;
     if (!layers) return;
     layers.clearLayers();
 
-    mockJunctions.forEach((j) => {
+    // Draw roads first (under markers)
+    const safeRoads = Array.isArray(mapData?.roads) ? mapData!.roads : [];
+    const junctionCoordMap = new Map<string, { lat: number; lng: number }>();
+    (Array.isArray(mapData?.junctions) ? mapData!.junctions : []).forEach((j: any) => {
+      const c = resolveCoords(j);
+      if (c) junctionCoordMap.set(j.id, c);
+    });
+    safeRoads.forEach((road: any) => {
+      const from = junctionCoordMap.get(road.from_junction);
+      const to = junctionCoordMap.get(road.to_junction);
+      if (!from || !to) return;
+      const line = L.polyline(
+        [[from.lat, from.lng], [to.lat, to.lng]],
+        { color: getRoadColor(road.speed_limit), weight: 1.5 + (road.lanes ?? 1) * 0.75, opacity: 0.7 }
+      );
+      line.bindPopup(`<strong>${road.name}</strong><br/>${road.from_junction} → ${road.to_junction}<br/>Speed: ${road.speed_limit} km/h | Lanes: ${road.lanes}`);
+      layers.addLayer(line);
+    });
+
+    const junctionsForMap = mapJunctions.length > 0 ? mapJunctions : JUNCTION_CAMERAS.map((camera) => {
+      const fallback = {
+        J1: { lat: 17.4947, lng: 78.3872 },
+        J2: { lat: 17.4935, lng: 78.3920 },
+        J3: { lat: 17.4898, lng: 78.3905 },
+        J4: { lat: 17.4962, lng: 78.3838 },
+        J5: { lat: 17.4855, lng: 78.3830 },
+        J6: { lat: 17.4978, lng: 78.3898 },
+        J7: { lat: 17.4885, lng: 78.3785 },
+        J8: { lat: 17.5018, lng: 78.3868 },
+        J9: { lat: 17.4990, lng: 78.3935 },
+        J10: { lat: 17.5042, lng: 78.3832 },
+      } as Record<string, { lat: number; lng: number }>;
+      const coords = fallback[camera.id] || { lat: 17.49, lng: 78.38 };
+      return { ...camera, ...coords };
+    });
+
+    junctionsForMap.forEach((j) => {
+      const coords = resolveCoords(j);
+      if (!coords) return;
+
       const status = statuses.find((s) => s.junctionId === j.id);
       const density = status?.density;
       const color = density ? DENSITY_COLORS[density] : "#CCCCCC";
       const isHighlighted = highlightedJunction === j.id;
 
-      const marker = L.circleMarker([j.lat, j.lng], {
+      const marker = L.circleMarker([coords.lat, coords.lng], {
         radius: isHighlighted ? 18 : 12,
         fillColor: color,
         fillOpacity: isHighlighted ? 1 : 0.85,
@@ -142,7 +226,7 @@ export function VideoDetectionPanel() {
       );
       layers.addLayer(marker);
     });
-  }, [statuses, highlightedJunction]);
+  }, [statuses, highlightedJunction, mapJunctions, mapData]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -163,7 +247,7 @@ export function VideoDetectionPanel() {
     setResult(null);
 
     try {
-      const res = await submitVideoDetection(selectedJunction, file, 5);
+      const res = await submitVideoDetection(selectedJunction, file, 10);
 
       // Use road_density_analysis as the ONLY authoritative source for headline metrics.
       // Do NOT sum detections_per_frame — that inflates counts (per-frame != unique vehicles).
@@ -203,6 +287,34 @@ export function VideoDetectionPanel() {
             : s
         )
       );
+      // Push updates into shared map cache so all pages react instantly.
+      queryClient.setQueryData(["map-data"], (current: any) => {
+        if (!current || !Array.isArray(current.junctions)) return current;
+        return {
+          ...current,
+          junctions: current.junctions.map((j: any) =>
+            j.id === selectedJunction
+              ? {
+                  ...j,
+                  density,
+                  vehicle_count: totalVehicles,
+                  total_pcu: totalPCU,
+                  vehicle_type_distribution: {
+                    car: vehicles.cars,
+                    bike: vehicles.bikes,
+                    auto: vehicles.autos,
+                    bus: vehicles.buses,
+                    truck: vehicles.trucks,
+                    cycle: vehicles.cycles,
+                  },
+                  live_updated_at: Date.now() / 1000,
+                }
+              : j
+          ),
+        };
+      });
+
+      await queryClient.refetchQueries({ queryKey: ["map-data"], exact: true });
       toast.success(`Analysis complete for ${JUNCTION_CAMERAS.find((j) => j.id === selectedJunction)?.name}`);
     } catch {
       // Mock fallback — uses local PCU calculation only when backend is unavailable
@@ -241,7 +353,7 @@ export function VideoDetectionPanel() {
     } finally {
       setLoading(false);
     }
-  }, [file, selectedJunction, elapsed]);
+  }, [file, selectedJunction, elapsed, queryClient]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -264,7 +376,7 @@ export function VideoDetectionPanel() {
                 <SelectValue placeholder="Select junction..." />
               </SelectTrigger>
               <SelectContent>
-                {JUNCTION_CAMERAS.map((j) => (
+                {cameraOptions.map((j) => (
                   <SelectItem key={j.id} value={j.id}>
                     {j.id} — {j.name}
                   </SelectItem>

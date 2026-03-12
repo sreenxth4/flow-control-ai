@@ -5,20 +5,20 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DensityBadge } from "@/components/DensityBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin } from "lucide-react";
-import { mockJunctions } from "@/lib/mock-data";
 import type { DensityLevel } from "@/lib/types";
 
 const UserConditionsPage = () => {
   const { data: mapData, isLoading } = useMapData();
 
   const junctions = mapData?.junctions || [];
+  const totalJunctions = junctions.length;
 
   const analyzed = junctions.filter((j) => !!j.density).length;
   const countByDensity = (level: DensityLevel) => junctions.filter((j) => j.density === level).length;
   const high = countByDensity("HIGH");
   const medium = countByDensity("MEDIUM");
   const low = countByDensity("LOW");
-  const pending = 10 - analyzed;
+  const pending = Math.max(totalJunctions - analyzed, 0);
 
   // Build summary string
   const parts: string[] = [];
@@ -53,7 +53,7 @@ const UserConditionsPage = () => {
         <Card className="mb-6">
           <CardContent className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-medium text-foreground">
-              {analyzed} of 10 junctions analyzed
+              {analyzed} of {totalJunctions} junctions analyzed
             </span>
             <span className="text-xs text-muted-foreground">{parts.join(", ")}</span>
           </CardContent>
@@ -61,23 +61,22 @@ const UserConditionsPage = () => {
 
         {/* Junction Cards Grid */}
         <div className="grid gap-4 md:grid-cols-2">
-          {mockJunctions.map((mj) => {
-            const live = junctions.find((j) => j.id === mj.id);
-            const density = live?.density;
+          {junctions.map((j) => {
+            const density = j.density;
             const hasData = !!density;
 
             return (
-              <Card key={mj.id}>
+              <Card key={j.id}>
                 <CardContent className="flex items-start justify-between p-4">
                   <div className="flex items-start gap-3">
                     <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium text-foreground">
-                        {mj.id} — {mj.name}
+                        {j.id} — {j.name}
                       </p>
-                      {hasData && live ? (
+                      {hasData ? (
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {live.vehicle_count ?? "?"} vehicles ({live.total_pcu ?? "?"} PCU)
+                          {j.vehicle_count ?? "?"} vehicles ({j.total_pcu ?? "?"} PCU)
                         </p>
                       ) : (
                         <p className="mt-0.5 text-xs text-muted-foreground">Awaiting analysis</p>

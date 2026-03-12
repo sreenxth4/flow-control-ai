@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MapPin, Route, X, ArrowRight, Loader2, AlertTriangle, Clock } from "lucide-react";
 import type { RouteResult, DensityLevel, MultiRouteResult } from "@/lib/types";
-import { mockJunctions } from "@/lib/mock-data";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -25,8 +24,12 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
 // Marker size by vehicle count
 const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
 
-// One-way roads
-const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
+const resolveCoords = (junction: any): { lat: number; lng: number } | null => {
+  const lat = junction?.lat ?? junction?.latitude;
+  const lng = junction?.lng ?? junction?.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat: Number(lat), lng: Number(lng) };
+};
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
 // Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
@@ -63,9 +66,6 @@ const getRouteLabelByRank = (routes: { total_cost: number; congestion_delay?: nu
   return routes.map((_, i) => labelMap[i]);
 };
 
-const JUNCTIONS = mockJunctions.map((j, i) => ({ ...j, index: i }));
-const getJunctionName = (id: string) => JUNCTIONS.find((j) => j.id === id)?.name || id;
-
 const UserRoutePage = () => {
   const { data } = useMapData();
   const queryClient = useQueryClient();
@@ -75,16 +75,23 @@ const UserRoutePage = () => {
   const [destination, setDestination] = useState<string>("");
   const [routeResult, setRouteResult] = useState<MultiRouteResult | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+  const [mapReady, setMapReady] = useState(false);
+
+  const junctions = Array.isArray(data?.junctions) ? data.junctions : [];
+  const getJunctionName = useCallback(
+    (id: string) => junctions.find((j) => j.id === id)?.name || id,
+    [junctions]
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
 
-  // Refetch map data every 15s for near-real-time density/vehicle updates
+  // Refetch map data every 90s for near-real-time density/vehicle updates
   useEffect(() => {
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ["map-data"] });
-    }, 15_000);
+    }, 90_000);
     return () => clearInterval(interval);
   }, [queryClient]);
 
@@ -102,16 +109,28 @@ const UserRoutePage = () => {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     mapRef.current = map;
     layersRef.current = L.layerGroup().addTo(map);
-    return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
+    setMapReady(true);
+    return () => { map.remove(); mapRef.current = null; layersRef.current = null; setMapReady(false); };
   }, []);
 
   // Update map
   useEffect(() => {
     const layers = layersRef.current;
-    if (!layers || !data) return;
+    if (!layers || !data || !mapReady) return;
     layers.clearLayers();
 
-    const junctionMap = new Map(data.junctions.map((j) => [j.id, j]));
+    const safeJunctions = Array.isArray(data.junctions) ? data.junctions : [];
+    const safeRoads = Array.isArray(data.roads) ? data.roads : [];
+
+    const junctionMap = new Map(
+      safeJunctions
+        .map((j) => {
+          const coords = resolveCoords(j);
+          if (!coords) return null;
+          return [j.id, { ...j, lat: coords.lat, lng: coords.lng }] as const;
+        })
+        .filter((entry): entry is readonly [string, (typeof safeJunctions)[number] & { lat: number; lng: number }] => entry !== null)
+    );
     const routes = routeResult?.routes || [];
     const selectedRoute = routes[selectedRouteIndex];
     const routeColors = getRouteColorByRank(routes);
@@ -132,19 +151,30 @@ const UserRoutePage = () => {
     const hasRoutes = routes.length > 0;
 
     // Roads
-    data.roads.forEach((road) => {
+    safeRoads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
-      
+
+      // Validate lat/lng values for road polyline
+      const latlngs = [[from.lat, from.lng], [to.lat, to.lng]];
+      if (
+        latlngs.some(
+          ([lat, lng]) =>
+            typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)
+        )
+      ) {
+        // eslint-disable-next-line no-console
+        console.warn(`Invalid lat/lng for road ${road.id}:`, latlngs);
+        return;
+      }
+
       // Only show the selected route on the map
       const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
-      const isOneWay = ONE_WAY_ROADS.includes(road.id);
 
       let lineColor: string;
       let lineWeight: number;
       let lineOpacity: number;
-      let dashArray: string | undefined;
 
       if (matchingRoute) {
         lineColor = matchingRoute.color;
@@ -156,18 +186,16 @@ const UserRoutePage = () => {
         lineWeight = 1;
         lineOpacity = 0.15;
       } else {
-        // Default: subtle gray roads
-        lineColor = isOneWay ? "#94a3b8" : "#6b7280";
+        // Default: BLACK major roads (50+), GREY local roads (40)
+        lineColor = road.speed_limit >= 50 ? "#1a1a1a" : "#999999";
         lineWeight = 1.5 + road.lanes * 0.5;
-        lineOpacity = 0.45;
-        dashArray = isOneWay ? "6 4" : undefined;
+        lineOpacity = 0.55;
       }
 
-      const line = L.polyline([[from.lat, from.lng], [to.lat, to.lng]], {
+      const line = L.polyline(latlngs, {
         color: lineColor,
         weight: lineWeight,
         opacity: lineOpacity,
-        dashArray,
       });
 
       const lengthM = (road.length_km * 1000).toFixed(0);
@@ -190,60 +218,62 @@ const UserRoutePage = () => {
     routes.forEach(r => r.path?.forEach(p => allRoutePaths.add(p)));
 
     // Junctions
-    data.junctions.forEach((j) => {
+    safeJunctions.forEach((j) => {
       const isSource = source === j.id;
       const isDest = destination === j.id;
       const isOnRoute = allRoutePaths.has(j.id);
-      
-      // Use real-time density from backend
+
+      const coords = resolveCoords(j);
+
+      // Validate lat/lng values for junction marker
+      if (!coords) {
+        // eslint-disable-next-line no-console
+        console.warn(`Invalid lat/lng for junction ${j.id}`);
+        return;
+      }
+
       const currentDensity = j.density;
-      const color = isSource ? "#3b82f6" : isDest ? "#ef4444" : currentDensity ? DENSITY_COLORS[currentDensity] : "#CCCCCC";
-      const radius = isSource || isDest ? 20 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
+      const color = isSource
+        ? "#3b82f6"
+        : isDest
+          ? "#ef4444"
+          : currentDensity
+            ? DENSITY_COLORS[currentDensity]
+            : "#CCCCCC";
+      const radius = isSource || isDest ? 11 : isOnRoute ? 9 : Math.max(7, getMarkerSize(j.vehicle_count));
+      const weight = isSource || isDest ? 3 : isOnRoute ? 3 : 2;
 
-      // Source/destination get a prominent pulsing marker with label
-      const markerIcon = L.divIcon({
-        className: 'junction-marker',
-        html: `<div style="position:relative; display:flex; align-items:center; justify-content:center;">
-          <div class="junction-circle ${isSource || isDest ? 'animate-pulse' : 'animate-density-pulse'}" style="
-            width: ${radius * 2}px; 
-            height: ${radius * 2}px; 
-            background-color: ${color}; 
-            border: ${isSource || isDest ? 4 : isOnRoute ? 3 : 1.5}px solid ${isSource ? '#60a5fa' : isDest ? '#f87171' : isOnRoute ? '#FFD700' : '#fff'};
-            border-radius: 50%;
-            opacity: ${isSource || isDest ? 1 : 0.9};
-            box-shadow: ${isSource ? '0 0 12px 4px rgba(59,130,246,0.5)' : isDest ? '0 0 12px 4px rgba(239,68,68,0.5)' : 'none'};
-          "></div>
-          ${isSource ? '<div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#3b82f6;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;">START</div>' : ''}
-          ${isDest ? '<div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;white-space:nowrap;">END</div>' : ''}
-        </div>`,
-        iconSize: [radius * 2, radius * 2 + (isSource || isDest ? 22 : 0)],
-        iconAnchor: [radius, radius + (isSource || isDest ? 0 : 0)],
+      const marker = L.circleMarker([coords.lat, coords.lng], {
+        radius,
+        fillColor: color,
+        fillOpacity: 0.95,
+        color: isOnRoute ? "#FFD700" : "#ffffff",
+        weight,
       });
-
-      const marker = L.marker([j.lat, j.lng], { icon: markerIcon });
       const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
       marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${currentDensity || "N/A"}${pcuInfo}</div>`);
       layers.addLayer(marker);
 
-      // Star marker for selected route junctions
-      if (selectedRoute?.path?.includes(j.id) && mapRef.current) {
-        const starIcon = L.divIcon({
-          className: 'route-star',
-          html: '<div style="color: #FFD700; font-size: 16px; text-shadow: 0 0 2px #000;">⭐</div>',
-          iconSize: [16, 16],
-          iconAnchor: [8, 20],
-        });
-        L.marker([j.lat, j.lng], { icon: starIcon, interactive: false }).addTo(layers);
-      }
+      const labelText = (j.name || j.id || "").trim() || j.id;
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelIcon = L.divIcon({
+        className: "junction-name-label",
+        html: `<div style="display:inline-block; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.96); color:#111827; border:1px solid rgba(17,24,39,0.15); font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${labelText}</div>`,
+        iconSize: [labelWidth, 20],
+        iconAnchor: [Math.floor(labelWidth / 2), -12],
+      });
+      L.marker([coords.lat, coords.lng], {
+        icon: labelIcon,
+        interactive: false,
+        keyboard: false,
+      }).addTo(layers);
     });
-  }, [data, routeResult, source, destination, selectedRouteIndex]);
+  }, [data, routeResult, source, destination, selectedRouteIndex, mapReady]);
 
   const handleFindRoute = useCallback(async () => {
     if (!source || !destination) return;
-    const srcIdx = parseInt(source.replace("J", "")) - 1;
-    const destIdx = parseInt(destination.replace("J", "")) - 1;
     try {
-      const result = await findRoutesMutation.mutateAsync({ source: srcIdx, destination: destIdx });
+      const result = await findRoutesMutation.mutateAsync({ source, destination });
       setRouteResult(result);
       setSelectedRouteIndex(0);
       if (result.routes.length === 0) toast.error("No route found between selected junctions");
@@ -281,7 +311,7 @@ const UserRoutePage = () => {
               <Select value={source} onValueChange={setSource}>
                 <SelectTrigger><SelectValue placeholder="Select source..." /></SelectTrigger>
                 <SelectContent>
-                  {JUNCTIONS.map((j) => (
+                  {junctions.map((j) => (
                     <SelectItem key={j.id} value={j.id} disabled={j.id === destination}>
                       {j.id} — {j.name}
                     </SelectItem>
@@ -298,7 +328,7 @@ const UserRoutePage = () => {
               <Select value={destination} onValueChange={setDestination}>
                 <SelectTrigger><SelectValue placeholder="Select destination..." /></SelectTrigger>
                 <SelectContent>
-                  {JUNCTIONS.map((j) => (
+                  {junctions.map((j) => (
                     <SelectItem key={j.id} value={j.id} disabled={j.id === source}>
                       {j.id} — {j.name}
                     </SelectItem>

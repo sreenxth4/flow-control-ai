@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Junction, Road, DensityLevel, TurnRestriction } from "@/lib/types";
-import { getRandomizedJunctionDensities } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
+import "./junction-label.css";
 
 // Density colors: GREEN/ORANGE/RED
 const DENSITY_COLORS: Record<DensityLevel, string> = {
@@ -13,14 +13,11 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   HIGH: "#FF0000",
 };
 
-// Speed colors: GREEN for 40km/h, BLUE for 50km/h+
-const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
+// Road colors: BLACK for major roads (50+), GREY for local roads (40)
+const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
-// Marker size by vehicle count: 12px min, grows with count
-const getMarkerSize = (vehicleCount?: number) => {
-  const count = vehicleCount || 0;
-  return Math.min(35, 12 + count * 0.8);
-};
+// Fixed compact marker size matching Upload & Analyze map style
+const getMarkerSize = (_vehicleCount?: number) => 10;
 
 // Turn restriction icons
 const RESTRICTION_ICONS: Record<string, string> = {
@@ -49,9 +46,6 @@ interface TrafficMapProps {
   multiRoutePaths?: { path: string[]; color: string }[];
 }
 
-// One-way roads (no reverse pair)
-const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
-
 export function TrafficMap({ 
   junctions, 
   roads, 
@@ -68,8 +62,6 @@ export function TrafficMap({
   const layersRef = useRef<L.LayerGroup | null>(null);
   const highlightRef = useRef<L.CircleMarker | null>(null);
   const [showTurnRestrictions, setShowTurnRestrictions] = useState(true);
-  const [liveDensities, setLiveDensities] = useState<Record<string, DensityLevel>>({});
-  const [pulseKey, setPulseKey] = useState(0);
 
   // Initialize map once - Kukatpally center
   useEffect(() => {
@@ -95,15 +87,6 @@ export function TrafficMap({
       mapRef.current = null;
       layersRef.current = null;
     };
-  }, []);
-
-  // Live density animation - update every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveDensities(getRandomizedJunctionDensities());
-      setPulseKey(k => k + 1);
-    }, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   // Update markers and roads
@@ -140,11 +123,10 @@ export function TrafficMap({
 
       const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
       const multiRouteMatch = multiRouteRoadSets.find(r => r.set.has(`${road.from_junction}-${road.to_junction}`));
-      const isOneWay = ONE_WAY_ROADS.includes(road.id);
-      const speedColor = getSpeedColor(road.speed_limit);
+      const roadColor = getRoadColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;
 
-      const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#FF0000" : speedColor;
+      const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#FF0000" : roadColor;
       const lineWeight = multiRouteMatch || isOnRoute ? 6 : weight;
       const lineOpacity = multiRouteMatch || isOnRoute ? 1 : 0.7;
 
@@ -154,7 +136,6 @@ export function TrafficMap({
           color: lineColor,
           weight: lineWeight,
           opacity: lineOpacity,
-          dashArray: isOneWay && !isOnRoute && !multiRouteMatch ? "8 6" : undefined,
         }
       );
 
@@ -208,16 +189,14 @@ export function TrafficMap({
       const isDest = destinationJunction === j.id;
       const isOnRoute = allRoutePaths.has(j.id);
 
-      // Use live density if available, otherwise use static
-      const currentDensity = liveDensities[j.id] || j.density;
+      const currentDensity = j.density;
       const color = !currentDensity ? "#CCCCCC" : isSource ? "#3b82f6" : isDest ? "#ef4444" : DENSITY_COLORS[currentDensity];
       const radius = isSource || isDest ? 16 : getMarkerSize(j.vehicle_count);
       const weight = isSource || isDest ? 3 : 2;
 
       // Create pulsing div icon for animated density
-      const pulseClass = currentDensity ? `density-pulse-${pulseKey % 2}` : '';
       const markerIcon = L.divIcon({
-        className: `junction-marker ${pulseClass}`,
+        className: "junction-marker",
         html: `<div class="junction-circle animate-density-pulse" style="
           width: ${radius * 2}px; 
           height: ${radius * 2}px; 
@@ -247,16 +226,19 @@ export function TrafficMap({
       marker.on("click", () => onJunctionClick(j.id));
       layers.addLayer(marker);
 
-      // Add junction label at zoom 14+
-      if (mapRef.current && mapRef.current.getZoom() >= 14) {
-        const labelIcon = L.divIcon({
-          className: 'junction-label',
-          html: `<div style="font-size: 10px; font-weight: bold; color: #333; background: rgba(255,255,255,0.8); padding: 1px 3px; border-radius: 2px; white-space: nowrap;">${j.id}</div>`,
-          iconSize: [30, 16],
-          iconAnchor: [15, -8],
-        });
-        L.marker([j.lat, j.lng], { icon: labelIcon, interactive: false }).addTo(layers);
-      }
+      const labelText = (j.name || j.id || "").trim() || j.id;
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelIcon = L.divIcon({
+        className: "junction-name-label",
+        html: `<div style="display:inline-block; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.96); color:#111827; border:1px solid rgba(17,24,39,0.15); font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${labelText}</div>`,
+        iconSize: [labelWidth, 20],
+        iconAnchor: [Math.floor(labelWidth / 2), -12],
+      });
+      L.marker([j.lat, j.lng], {
+        icon: labelIcon,
+        interactive: false,
+        keyboard: false,
+      }).addTo(layers);
     });
 
     // Draw turn restrictions at zoom 15+
@@ -293,7 +275,7 @@ export function TrafficMap({
           .addTo(layers);
       });
     }
-  }, [junctions, roads, onJunctionClick, routePath, sourceJunction, destinationJunction, showTurnRestrictions, turnRestrictions, multiRoutePaths, liveDensities, pulseKey]);
+  }, [junctions, roads, onJunctionClick, routePath, sourceJunction, destinationJunction, showTurnRestrictions, turnRestrictions, multiRoutePaths]);
 
   // Fly to with enhanced zoom and highlight animation
   useEffect(() => {

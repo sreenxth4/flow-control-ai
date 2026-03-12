@@ -18,14 +18,22 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   HIGH: "#FF0000",
 };
 
-// Speed colors
-const getSpeedColor = (speedLimit: number) => speedLimit >= 50 ? "#0066FF" : "#00CC00";
+// Road colors: BLACK for major roads (50+), GREY for local roads (40)
+const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
-// Marker size by vehicle count
-const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
+// Fixed compact marker size matching Upload & Analyze map style
+const getMarkerSize = (_vehicleCount?: number) => 10;
 
-// One-way roads
-const ONE_WAY_ROADS = ["R14", "R38", "R42", "R49", "R58", "R72", "R83", "R85", "R93", "R94"];
+const isValidCoord = (lat: unknown, lng: unknown): lat is number => {
+  return Number.isFinite(lat) && Number.isFinite(lng);
+};
+
+const resolveCoords = (junction: any): { lat: number; lng: number } | null => {
+  const lat = junction?.lat ?? junction?.latitude;
+  const lng = junction?.lng ?? junction?.longitude;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat: Number(lat), lng: Number(lng) };
+};
 
 export function TrafficDashboard() {
   const { data: mapData, isLoading: mapLoading } = useMapData();
@@ -59,26 +67,32 @@ export function TrafficDashboard() {
     if (!layers || !mapData) return;
     layers.clearLayers();
 
+    const safeJunctions = Array.isArray(mapData.junctions) ? mapData.junctions : [];
+    const safeRoads = Array.isArray(mapData.roads) ? mapData.roads : [];
+
     const junctionMap = new Map<string, Junction>();
-    mapData.junctions.forEach((j) => junctionMap.set(j.id, j));
+    safeJunctions.forEach((j) => {
+      const coords = resolveCoords(j);
+      if (!coords) return;
+      junctionMap.set(j.id, { ...j, lat: coords.lat, lng: coords.lng });
+    });
 
     // Roads
-    mapData.roads.forEach((road) => {
+    safeRoads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
+      if (!isValidCoord(from.lat, from.lng) || !isValidCoord(to.lat, to.lng)) return;
 
-      const isOneWay = ONE_WAY_ROADS.includes(road.id);
-      const speedColor = getSpeedColor(road.speed_limit);
+      const roadColor = getRoadColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;
 
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
         {
-          color: speedColor,
+          color: roadColor,
           weight,
           opacity: 0.7,
-          dashArray: isOneWay ? "8 6" : undefined,
         }
       );
       
@@ -95,11 +109,14 @@ export function TrafficDashboard() {
     });
 
     // Junctions
-    mapData.junctions.forEach((j) => {
+    safeJunctions.forEach((j) => {
+      const coords = resolveCoords(j);
+      if (!coords || !isValidCoord(coords.lat, coords.lng)) return;
+
       const color = j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
       const radius = getMarkerSize(j.vehicle_count);
 
-      const marker = L.circleMarker([j.lat, j.lng], {
+      const marker = L.circleMarker([coords.lat, coords.lng], {
         radius,
         fillColor: color,
         fillOpacity: 0.9,
@@ -113,10 +130,12 @@ export function TrafficDashboard() {
   }, [mapData]);
 
   // Group signal phases by junction
+  const safeJunctions = mapData && Array.isArray(mapData.junctions) ? mapData.junctions : [];
+  const safeSignalPhases = mapData && Array.isArray((mapData as any).signal_phases) ? (mapData as any).signal_phases : [];
   const phasesByJunction = mapData
-    ? mapData.junctions.map((j) => ({
+    ? safeJunctions.map((j) => ({
         junction: j,
-        phases: mapData.signal_phases.filter((sp) => sp.junction_id === j.id),
+        phases: safeSignalPhases.filter((sp) => sp?.junction_id === j.id),
       }))
     : [];
 
@@ -161,13 +180,13 @@ export function TrafficDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {phases.map((sp) => (
-                            <TableRow key={sp.phase_name}>
+                          {phases.map((sp, idx) => (
+                            <TableRow key={`${junction.id}-${sp.phase_name || "phase"}-${idx}`}>
                               <TableCell className="text-sm">{(sp.phase_name ?? "").replace(junction.name + " ", "")}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {sp.green_roads.map((r) => (
-                                    <Badge key={r} variant="outline" className="text-xs">{r}</Badge>
+                                  {(Array.isArray(sp?.green_roads) ? sp.green_roads : []).map((r, roadIdx) => (
+                                    <Badge key={`${junction.id}-${sp.phase_name || "phase"}-${r}-${roadIdx}`} variant="outline" className="text-xs">{r}</Badge>
                                   ))}
                                 </div>
                               </TableCell>
@@ -242,25 +261,25 @@ export function TrafficDashboard() {
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Frames</span>
-                    <span className="font-medium text-foreground">{perf.summary.total_frames}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? perf.summary?.total_frames_processed ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Average FPS</span>
-                    <span className="font-medium text-foreground">{perf.summary.average_fps}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? perf.summary?.average_processing_fps ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Processing Time</span>
                     <span className="flex items-center gap-1 font-medium text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {perf.summary.total_time}s
+                      {perf.summary?.total_time ?? perf.summary?.processing_time_seconds ?? 0}s
                     </span>
                   </div>
                   {/* Breakdown bar */}
                   <div className="mt-2 space-y-1.5">
                     <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
-                    <PerfBar label="Detection" value={perf.performance_profile.detect_time} total={perf.performance_profile.total_time} />
-                    <PerfBar label="Tracking" value={perf.performance_profile.track_time} total={perf.performance_profile.total_time} />
-                    <PerfBar label="Analysis" value={perf.performance_profile.analyze_time} total={perf.performance_profile.total_time} />
+                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? perf.performance_profile?.detect_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
+                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? perf.performance_profile?.track_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
+                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? perf.performance_profile?.analyze_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
                   </div>
                 </div>
               ) : (

@@ -309,9 +309,16 @@ function calculateCongestion(path: string[]): { delay: number; junctions: Conges
 
 const ROUTE_COLORS = ["#FF0000", "#FFD700", "#3B82F6"];
 
-export function getMockRoute(sourceIdx: number, destIdx: number): RouteResult {
-  const sourceId = `J${sourceIdx + 1}`;
-  const destId = `J${destIdx + 1}`;
+function normalizeJunctionRef(ref: string | number): string {
+  if (typeof ref === "string") {
+    return ref.startsWith("J") ? ref : `J${ref}`;
+  }
+  return `J${ref + 1}`;
+}
+
+export function getMockRoute(sourceRef: string | number, destRef: string | number): RouteResult {
+  const sourceId = normalizeJunctionRef(sourceRef);
+  const destId = normalizeJunctionRef(destRef);
   const paths = findKShortestPaths(sourceId, destId, 1);
   
   if (paths.length === 0) {
@@ -348,9 +355,9 @@ export function getMockRoute(sourceIdx: number, destIdx: number): RouteResult {
   };
 }
 
-export function getMockMultipleRoutes(sourceIdx: number, destIdx: number): MultiRouteResult {
-  const sourceId = `J${sourceIdx + 1}`;
-  const destId = `J${destIdx + 1}`;
+export function getMockMultipleRoutes(sourceRef: string | number, destRef: string | number): MultiRouteResult {
+  const sourceId = normalizeJunctionRef(sourceRef);
+  const destId = normalizeJunctionRef(destRef);
   const paths = findKShortestPaths(sourceId, destId, 3);
   
   if (paths.length === 0) {

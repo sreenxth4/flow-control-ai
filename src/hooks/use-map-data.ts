@@ -6,8 +6,11 @@ export function useMapData() {
   return useQuery({
     queryKey: ["map-data"],
     queryFn: fetchMapData,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval: 90_000,
+    refetchIntervalInBackground: false,
+    staleTime: 90_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 

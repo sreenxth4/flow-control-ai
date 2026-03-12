@@ -128,8 +128,8 @@ export interface NetworkStatus {
 
 // Route Finding
 export interface RouteRequest {
-  source: number;
-  destination: number;
+  source: string;
+  destination: string;
 }
 
 export interface RouteSegment {
