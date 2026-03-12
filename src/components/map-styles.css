@@ -1,0 +1,122 @@
+/* ─── Shared Map Styles ─── */
+
+/* Junction name labels */
+.junction-name-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+.junction-name-label > div {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Junction circle markers with hover glow */
+.junction-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.junction-circle {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  cursor: pointer;
+}
+
+.junction-circle:hover {
+  transform: scale(1.35) !important;
+  box-shadow: 0 0 14px 4px rgba(255, 215, 0, 0.5);
+  filter: brightness(1.15);
+  z-index: 9999 !important;
+}
+
+/* Pulse animation for density markers */
+@keyframes density-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+  50% { box-shadow: 0 0 8px 3px rgba(255,255,255,0.15); }
+}
+
+.animate-density-pulse {
+  animation: density-pulse 2.5s ease-in-out infinite;
+}
+
+/* Highlight pulse when flying to junction */
+@keyframes highlight-ring {
+  0% { stroke-opacity: 0.8; stroke-width: 4; }
+  100% { stroke-opacity: 0; stroke-width: 20; }
+}
+
+.junction-highlight-pulse {
+  animation: highlight-ring 1.5s ease-out forwards;
+}
+
+/* Road hover: thicken on hover via leaflet interactive class */
+.leaflet-interactive:hover {
+  stroke-opacity: 1 !important;
+  cursor: pointer;
+}
+
+/* Turn restriction badges */
+.turn-restriction {
+  background: transparent !important;
+  border: none !important;
+  transition: transform 0.15s ease;
+}
+
+.turn-restriction:hover {
+  transform: scale(1.2);
+}
+
+/* Road direction arrows */
+.road-arrow {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Tooltip styling override */
+.leaflet-tooltip {
+  background: rgba(15, 23, 42, 0.92) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(8px);
+}
+
+.leaflet-tooltip-top::before {
+  border-top-color: rgba(15, 23, 42, 0.92) !important;
+}
+
+.leaflet-tooltip-bottom::before {
+  border-bottom-color: rgba(15, 23, 42, 0.92) !important;
+}
+
+/* Popup styling override */
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #f1f5f9 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35) !important;
+  backdrop-filter: blur(10px);
+}
+
+.leaflet-popup-tip {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 16px !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #f1f5f9 !important;
+}
