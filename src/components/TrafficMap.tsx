@@ -214,13 +214,22 @@ export function TrafficMap({
       const incomingRoads = roads.filter(r => r.to_junction === j.id).map(r => r.id).join(", ");
       const outgoingRoads = roads.filter(r => r.from_junction === j.id).map(r => r.id).join(", ");
 
+      marker.bindTooltip(
+        `<div style="min-width:160px;">
+          <strong>${j.id}: ${j.name}</strong><br/>
+          <span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count ?? 0} &nbsp;|&nbsp; <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${currentDensity || "N/A"}</strong><br/>
+          ${j.total_pcu ? `<span style="color:#94a3b8">PCU:</span> ${j.total_pcu}<br/>` : ""}
+          <span style="color:#94a3b8">In:</span> ${incomingRoads || "none"} &nbsp;|&nbsp; <span style="color:#94a3b8">Out:</span> ${outgoingRoads || "none"}
+        </div>`,
+        { direction: "top", offset: [0, -8] }
+      );
       marker.bindPopup(
         `<div style="min-width:180px">
           <strong>${j.id}: ${j.name}</strong><br/>
-          Vehicles: ${j.vehicle_count ?? 0} | Density: <strong>${currentDensity || "N/A"}</strong><br/>
-          ${j.total_pcu ? `PCU: ${j.total_pcu}<br/>` : ""}
-          <span style="color:#666">Incoming:</span> ${incomingRoads || "none"}<br/>
-          <span style="color:#666">Outgoing:</span> ${outgoingRoads || "none"}
+          <span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count ?? 0} &nbsp;|&nbsp; <span style="color:#94a3b8">Density:</span> <strong>${currentDensity || "N/A"}</strong><br/>
+          ${j.total_pcu ? `<span style="color:#94a3b8">PCU:</span> ${j.total_pcu}<br/>` : ""}
+          <span style="color:#94a3b8">Incoming:</span> ${incomingRoads || "none"}<br/>
+          <span style="color:#94a3b8">Outgoing:</span> ${outgoingRoads || "none"}
         </div>`
       );
       marker.on("click", () => onJunctionClick(j.id));
@@ -232,7 +241,7 @@ export function TrafficMap({
         className: "junction-name-label",
         html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
         iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -12],
+        iconAnchor: [Math.floor(labelWidth / 2), -14],
       });
       L.marker([j.lat, j.lng], {
         icon: labelIcon,
