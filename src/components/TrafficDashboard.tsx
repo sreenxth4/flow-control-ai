@@ -265,7 +265,7 @@ export function TrafficDashboard() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Average FPS</span>
-                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? perf.summary?.average_processing_fps ?? 0}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Processing Time</span>
