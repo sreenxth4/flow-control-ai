@@ -87,17 +87,11 @@ const UserMapPage = () => {
       }
 
       // Validate lat/lng values
-      const latlngs: L.LatLngExpression[] = [[from.lat, from.lng], [to.lat, to.lng]];
-      if (
-        latlngs.some(
-          ([lat, lng]) =>
-            typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)
-        )
-      ) {
-        // eslint-disable-next-line no-console
-        console.warn(`Invalid lat/lng for road ${road.id}:`, latlngs);
+      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) {
+        console.warn(`Invalid lat/lng for road ${road.id}`);
         return;
       }
+      const latlngs: L.LatLngTuple[] = [[from.lat, from.lng], [to.lat, to.lng]];
 
       const roadColor = getRoadColor(road.speed_limit);
       const weight = 1.5 + road.lanes * 0.75;

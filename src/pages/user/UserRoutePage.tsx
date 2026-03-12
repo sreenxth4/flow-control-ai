@@ -156,18 +156,12 @@ const UserRoutePage = () => {
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
 
-      // Validate lat/lng values for road polyline
-      const latlngs: L.LatLngExpression[] = [[from.lat, from.lng], [to.lat, to.lng]];
-      if (
-        latlngs.some(
-          ([lat, lng]) =>
-            typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)
-        )
-      ) {
-        // eslint-disable-next-line no-console
-        console.warn(`Invalid lat/lng for road ${road.id}:`, latlngs);
+      // Validate lat/lng values
+      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) {
+        console.warn(`Invalid lat/lng for road ${road.id}`);
         return;
       }
+      const latlngs: L.LatLngTuple[] = [[from.lat, from.lng], [to.lat, to.lng]];
 
       // Only show the selected route on the map
       const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
