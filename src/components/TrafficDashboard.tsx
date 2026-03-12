@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@/components/map-styles.css";
 import type { DensityLevel, Junction } from "@/lib/types";
 
 // Density colors: GREEN/ORANGE/RED

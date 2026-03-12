@@ -12,6 +12,7 @@ import type { DensityLevel } from "@/lib/types";
 import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@/components/map-styles.css";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Junction camera options - Kukatpally Zone
