@@ -431,6 +431,28 @@ export function VideoDetectionPanel() {
             <p className="text-xs text-muted-foreground">Upload traffic footage for AI vehicle detection</p>
           </div>
 
+          {/* Quick Scenarios */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Quick Scenarios</Label>
+            <div className="flex gap-2">
+              {SCENARIOS.map((s) => (
+                <Button
+                  key={s.id}
+                  variant="outline"
+                  size="sm"
+                  disabled={scenarioLoading !== null}
+                  className={`flex-1 text-xs ${activeScenario === s.id ? "border-primary border-2 bg-primary/10" : ""}`}
+                  onClick={() => handleScenario(s.id)}
+                >
+                  {scenarioLoading === s.id ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : null}
+                  {s.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
           {/* Junction Select */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Junction Camera</Label>
