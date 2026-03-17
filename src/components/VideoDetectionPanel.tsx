@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Play, Loader2, Car, Bike, Bus, Truck } from "lucide-react";
-import { submitVideoDetection } from "@/lib/api";
+import { submitVideoDetection, postSimulationScenario } from "@/lib/api";
 import { useMapData } from "@/hooks/use-map-data";
 import { DensityBadge } from "@/components/DensityBadge";
 import type { DensityLevel } from "@/lib/types";
