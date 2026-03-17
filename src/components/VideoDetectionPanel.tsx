@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, Play, Loader2, Car, Bike, Bus, Truck } from "lucide-react";
-import { submitVideoDetection } from "@/lib/api";
+import { submitVideoDetection, postSimulationScenario } from "@/lib/api";
 import { useMapData } from "@/hooks/use-map-data";
 import { DensityBadge } from "@/components/DensityBadge";
 import type { DensityLevel } from "@/lib/types";
@@ -81,6 +81,12 @@ function resolveCoords(junction: any): { lat: number; lng: number } | null {
 // Road colors: BLACK for major roads (50+), GREY for local roads (<50)
 const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
+const SCENARIOS = [
+  { id: "morning_peak", label: "☀ Morning Peak" },
+  { id: "off_peak", label: "🌙 Off-Peak" },
+  { id: "incident_j5", label: "⚠ Incident at J5" },
+] as const;
+
 export function VideoDetectionPanel() {
   const queryClient = useQueryClient();
   const { data: mapData } = useMapData();
@@ -90,6 +96,8 @@ export function VideoDetectionPanel() {
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [highlightedJunction, setHighlightedJunction] = useState<string | null>(null);
+  const [activeScenario, setActiveScenario] = useState<string | null>(null);
+  const [scenarioLoading, setScenarioLoading] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<JunctionStatus[]>(
     JUNCTION_CAMERAS.map((j) => ({
       junctionId: j.id,
@@ -100,6 +108,21 @@ export function VideoDetectionPanel() {
       pcu: 0,
     }))
   );
+
+  const handleScenario = useCallback(async (scenarioId: string) => {
+    setScenarioLoading(scenarioId);
+    try {
+      await postSimulationScenario(scenarioId);
+      setActiveScenario(scenarioId);
+      toast.success(`Scenario "${scenarioId.replace(/_/g, " ")}" applied`);
+      await queryClient.refetchQueries({ queryKey: ["map-data"], exact: true });
+    } catch {
+      setActiveScenario(scenarioId);
+      toast.info(`Scenario set (mock) — backend unavailable`);
+    } finally {
+      setScenarioLoading(null);
+    }
+  }, [queryClient]);
 
   const mapJunctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
   const cameraOptions =
@@ -406,6 +429,28 @@ export function VideoDetectionPanel() {
           <div>
             <h2 className="text-lg font-bold text-foreground">Upload & Analyze</h2>
             <p className="text-xs text-muted-foreground">Upload traffic footage for AI vehicle detection</p>
+          </div>
+
+          {/* Quick Scenarios */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Quick Scenarios</Label>
+            <div className="flex gap-2">
+              {SCENARIOS.map((s) => (
+                <Button
+                  key={s.id}
+                  variant="outline"
+                  size="sm"
+                  disabled={scenarioLoading !== null}
+                  className={`flex-1 text-xs ${activeScenario === s.id ? "border-primary border-2 bg-primary/10" : ""}`}
+                  onClick={() => handleScenario(s.id)}
+                >
+                  {scenarioLoading === s.id ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : null}
+                  {s.label}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* Junction Select */}

@@ -182,3 +182,12 @@ export async function findMultipleRoutes(request: RouteRequest): Promise<MultiRo
     }
   }
 }
+
+// Simulation Scenarios
+export async function postSimulationScenario(scenario: string): Promise<any> {
+  return apiFetch<any>("/api/simulation/scenario", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario }),
+  });
+}
