@@ -10,31 +10,17 @@ import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock } from "lucide-react"
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@/components/map-styles.css";
-import type { DensityLevel, Junction } from "@/lib/types";
-
-// Density colors: GREEN/ORANGE/RED
-const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#00AA00",
-  MEDIUM: "#FF8800",
-  HIGH: "#FF0000",
-};
-
-// Road colors: BLACK for major roads (50+), GREY for local roads (40)
-const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
-
-// Fixed compact marker size matching Upload & Analyze map style
-const getMarkerSize = (_vehicleCount?: number) => 10;
-
-const isValidCoord = (lat: unknown, lng: unknown): lat is number => {
-  return Number.isFinite(lat) && Number.isFinite(lng);
-};
-
-const resolveCoords = (junction: any): { lat: number; lng: number } | null => {
-  const lat = junction?.lat ?? junction?.latitude;
-  const lng = junction?.lng ?? junction?.longitude;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat: Number(lat), lng: Number(lng) };
-};
+import type { Junction } from "@/lib/types";
+import {
+  getRoadColorByDensity,
+  getMarkerSize,
+  createJunctionMarkerHTML,
+  createJunctionLabelHTML,
+  createJunctionTooltipHTML,
+  createJunctionPopupHTML,
+  createRoadTooltipHTML,
+  resolveCoords,
+} from "@/components/map-utils";
 
 export function TrafficDashboard() {
   const { data: mapData, isLoading: mapLoading } = useMapData();
