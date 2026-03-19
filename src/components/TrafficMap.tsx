@@ -5,16 +5,16 @@ import type { Junction, Road, DensityLevel, TurnRestriction } from "@/lib/types"
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import "./map-styles.css";
-
-// Density colors: GREEN/ORANGE/RED
-const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#00AA00",
-  MEDIUM: "#FF8800",
-  HIGH: "#FF0000",
-};
-
-// Road colors: BLACK for major roads (50+), GREY for local roads (40)
-const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
+import {
+  DENSITY_COLORS,
+  getRoadColorByDensity,
+  getMarkerSize,
+  createJunctionMarkerHTML,
+  createJunctionLabelHTML,
+  createJunctionTooltipHTML,
+  createJunctionPopupHTML,
+  createRoadTooltipHTML,
+} from "./map-utils";
 
 // Fixed compact marker size matching Upload & Analyze map style
 const getMarkerSize = (_vehicleCount?: number) => 10;
