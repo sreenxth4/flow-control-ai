@@ -64,30 +64,21 @@ export function TrafficDashboard() {
       junctionMap.set(j.id, { ...j, lat: coords.lat, lng: coords.lng });
     });
 
-    // Roads
+    // Roads with density-based coloring
     safeRoads.forEach((road) => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
-      if (!isValidCoord(from.lat, from.lng) || !isValidCoord(to.lat, to.lng)) return;
 
-      const roadColor = getRoadColor(road.speed_limit);
-      const weight = 1.5 + road.lanes * 0.75;
+      const lineColor = getRoadColorByDensity(from.density, to.density);
+      const weight = 2 + road.lanes * 0.8;
 
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
-        { color: roadColor, weight, opacity: 0.7 }
+        { color: lineColor, weight, opacity: 0.65 }
       );
-      
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
       line.bindTooltip(
-        `<div style="min-width:140px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#94a3b8">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m &nbsp;|&nbsp; 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes &nbsp;|&nbsp; ⏱️ ${baseCost}s
-        </div>`,
+        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
         { sticky: true, direction: "top" }
       );
       layers.addLayer(line);
@@ -96,48 +87,33 @@ export function TrafficDashboard() {
     // Junctions
     safeJunctions.forEach((j) => {
       const coords = resolveCoords(j);
-      if (!coords || !isValidCoord(coords.lat, coords.lng)) return;
+      if (!coords) return;
 
-      const color = j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
       const radius = getMarkerSize(j.vehicle_count);
-
       const markerIcon = L.divIcon({
         className: "junction-marker",
-        html: `<div class="junction-circle animate-density-pulse" style="
-          width: ${radius * 2}px; 
-          height: ${radius * 2}px; 
-          background-color: ${color}; 
-          border: 2px solid #fff;
-          border-radius: 50%;
-          opacity: 0.9;
-        "></div>`,
+        html: createJunctionMarkerHTML({ density: j.density, radius }),
         iconSize: [radius * 2, radius * 2],
         iconAnchor: [radius, radius],
       });
 
       const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
-      const densityLabel = j.density || "No data";
-      const pcuInfo = j.vehicle_count != null && j.total_pcu != null
-        ? `<br/><span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count} &nbsp;|&nbsp; <span style="color:#94a3b8">PCU:</span> ${j.total_pcu}`
-        : "";
       marker.bindTooltip(
-        `<div style="min-width:140px;">
-          <strong>${j.id}: ${j.name}</strong><br/>
-          <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${densityLabel}</strong>${pcuInfo}
-        </div>`,
-        { direction: "top", offset: [0, -8] }
+        createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
+        { direction: "top", offset: [0, -12] }
       );
-      marker.bindPopup(`<div style="min-width:160px"><strong>${j.id}: ${j.name}</strong><br/><span style="color:#94a3b8">Density:</span> ${densityLabel}${pcuInfo}</div>`);
+      marker.bindPopup(
+        createJunctionPopupHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu })
+      );
       layers.addLayer(marker);
 
-      // Junction name label
       const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
       const labelIcon = L.divIcon({
         className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
+        html: createJunctionLabelHTML(labelText),
         iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -14],
+        iconAnchor: [Math.floor(labelWidth / 2), -16],
       });
       L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
     });
