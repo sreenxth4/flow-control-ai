@@ -187,32 +187,25 @@ export function VideoDetectionPanel() {
     if (!layers) return;
     layers.clearLayers();
 
-    // Draw roads first (under markers)
+    // Roads with density-based coloring
     const safeRoads = Array.isArray(mapData?.roads) ? mapData!.roads : [];
-    const junctionCoordMap = new Map<string, { lat: number; lng: number }>();
+    const junctionCoordMap = new Map<string, { lat: number; lng: number; density?: DensityLevel | null }>();
     (Array.isArray(mapData?.junctions) ? mapData!.junctions : []).forEach((j: any) => {
       const c = resolveCoords(j);
-      if (c) junctionCoordMap.set(j.id, c);
+      if (c) junctionCoordMap.set(j.id, { ...c, density: j.density });
     });
     safeRoads.forEach((road: any) => {
       const from = junctionCoordMap.get(road.from_junction);
       const to = junctionCoordMap.get(road.to_junction);
       if (!from || !to) return;
-      const roadColor = getRoadColor(road.speed_limit);
-      const weight = 1.5 + (road.lanes ?? 1) * 0.75;
+      const lineColor = getRoadColorByDensity(from.density, to.density);
+      const weight = 2 + (road.lanes ?? 1) * 0.8;
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
-        { color: roadColor, weight, opacity: 0.7 }
+        { color: lineColor, weight, opacity: 0.65 }
       );
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
       line.bindTooltip(
-        `<div style="min-width:140px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#94a3b8">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m &nbsp;|&nbsp; 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes &nbsp;|&nbsp; ⏱️ ${baseCost}s
-        </div>`,
+        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
         { sticky: true, direction: "top" }
       );
       layers.addLayer(line);
@@ -241,45 +234,30 @@ export function VideoDetectionPanel() {
 
       const status = statuses.find((s) => s.junctionId === j.id);
       const density = status?.density;
-      const color = density ? DENSITY_COLORS[density] : "#CCCCCC";
       const isHighlighted = highlightedJunction === j.id;
-      const radius = isHighlighted ? 16 : 10;
-      const borderWidth = isHighlighted ? 3 : 2;
+      const radius = isHighlighted ? 18 : getMarkerSize(status?.vehicleCount);
 
       const markerIcon = L.divIcon({
         className: "junction-marker",
-        html: `<div class="junction-circle ${!isHighlighted ? 'animate-density-pulse' : ''}" style="
-          width: ${radius * 2}px; 
-          height: ${radius * 2}px; 
-          background-color: ${color}; 
-          border: ${borderWidth}px solid ${isHighlighted ? '#fff' : '#fff'};
-          border-radius: 50%;
-          opacity: ${isHighlighted ? 1 : 0.9};
-        "></div>`,
+        html: createJunctionMarkerHTML({ density, radius, isSpecial: isHighlighted }),
         iconSize: [radius * 2, radius * 2],
         iconAnchor: [radius, radius],
       });
 
       const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
-      const densityLabel = density || "Pending";
       marker.bindTooltip(
-        `<div style="min-width:140px;">
-          <strong>${j.id}: ${j.name}</strong><br/>
-          <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${densityLabel}</strong>
-        </div>`,
-        { direction: "top", offset: [0, -8] }
+        createJunctionTooltipHTML({ id: j.id, name: j.name, density, vehicleCount: status?.vehicleCount, totalPcu: status?.pcu }),
+        { direction: "top", offset: [0, -12] }
       );
-      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/><span style="color:#94a3b8">Density:</span> ${densityLabel}</div>`);
       layers.addLayer(marker);
 
-      // Junction name label
       const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
       const labelIcon = L.divIcon({
         className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
+        html: createJunctionLabelHTML(labelText),
         iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -14],
+        iconAnchor: [Math.floor(labelWidth / 2), -16],
       });
       L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
     });
