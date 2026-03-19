@@ -14,6 +14,16 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@/components/map-styles.css";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  DENSITY_COLORS,
+  getRoadColorByDensity,
+  getMarkerSize,
+  createJunctionMarkerHTML,
+  createJunctionLabelHTML,
+  createJunctionTooltipHTML,
+  createRoadTooltipHTML,
+  resolveCoords,
+} from "@/components/map-utils";
 
 // Junction camera options - Kukatpally Zone
 const JUNCTION_CAMERAS = [
@@ -28,12 +38,6 @@ const JUNCTION_CAMERAS = [
   { id: "J9", name: "Pragathi Nagar Junction" },
   { id: "J10", name: "Bachupally Junction" },
 ] as const;
-
-const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#00AA00",
-  MEDIUM: "#FF8800",
-  HIGH: "#FF0000",
-};
 
 interface AnalysisResult {
   junctionId: string;
@@ -70,16 +74,6 @@ function classifyDensity(pcu: number): DensityLevel {
   if (pcu < 50) return "MEDIUM";
   return "HIGH";
 }
-
-function resolveCoords(junction: any): { lat: number; lng: number } | null {
-  const lat = junction?.lat ?? junction?.latitude;
-  const lng = junction?.lng ?? junction?.longitude;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat: Number(lat), lng: Number(lng) };
-}
-
-// Road colors: BLACK for major roads (50+), GREY for local roads (<50)
-const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
 const SCENARIOS = [
   { id: "morning_peak", label: "☀ Morning Peak" },
