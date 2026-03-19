@@ -16,9 +16,7 @@ import {
   createRoadTooltipHTML,
 } from "./map-utils";
 
-// Fixed compact marker size matching Upload & Analyze map style
-const getMarkerSize = (_vehicleCount?: number) => 10;
-
+// Fixed compact marker size - now using shared getMarkerSize
 // Turn restriction icons
 const RESTRICTION_ICONS: Record<string, string> = {
   no_left: "🚫⬅",
