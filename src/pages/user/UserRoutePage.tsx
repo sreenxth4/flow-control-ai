@@ -14,23 +14,16 @@ import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@/components/map-styles.css";
-
-// Density colors
-const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#22c55e",
-  MEDIUM: "#f59e0b",
-  HIGH: "#ef4444",
-};
-
-// Marker size by vehicle count
-const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
-
-const resolveCoords = (junction: any): { lat: number; lng: number } | null => {
-  const lat = junction?.lat ?? junction?.latitude;
-  const lng = junction?.lng ?? junction?.longitude;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat: Number(lat), lng: Number(lng) };
-};
+import {
+  DENSITY_COLORS,
+  getRoadColorByDensity,
+  getMarkerSize,
+  createJunctionMarkerHTML,
+  createJunctionLabelHTML,
+  createJunctionTooltipHTML,
+  createRoadTooltipHTML,
+  resolveCoords,
+} from "@/components/map-utils";
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
 // Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
