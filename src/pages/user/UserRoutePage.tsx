@@ -14,23 +14,16 @@ import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@/components/map-styles.css";
-
-// Density colors
-const DENSITY_COLORS: Record<DensityLevel, string> = {
-  LOW: "#22c55e",
-  MEDIUM: "#f59e0b",
-  HIGH: "#ef4444",
-};
-
-// Marker size by vehicle count
-const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
-
-const resolveCoords = (junction: any): { lat: number; lng: number } | null => {
-  const lat = junction?.lat ?? junction?.latitude;
-  const lng = junction?.lng ?? junction?.longitude;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat: Number(lat), lng: Number(lng) };
-};
+import {
+  DENSITY_COLORS,
+  getRoadColorByDensity,
+  getMarkerSize,
+  createJunctionMarkerHTML,
+  createJunctionLabelHTML,
+  createJunctionTooltipHTML,
+  createRoadTooltipHTML,
+  resolveCoords,
+} from "@/components/map-utils";
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
 // Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
@@ -156,15 +149,9 @@ const UserRoutePage = () => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
-
-      // Validate lat/lng values
-      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) {
-        console.warn(`Invalid lat/lng for road ${road.id}`);
-        return;
-      }
+      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) return;
       const latlngs: L.LatLngTuple[] = [[from.lat, from.lng], [to.lat, to.lng]];
 
-      // Only show the selected route on the map
       const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
 
       let lineColor: string;
@@ -176,35 +163,20 @@ const UserRoutePage = () => {
         lineWeight = 8;
         lineOpacity = 1;
       } else if (hasRoutes) {
-        // Dim all non-route roads when routes are displayed
         lineColor = "#6b7280";
         lineWeight = 1;
         lineOpacity = 0.15;
       } else {
-        // Default: BLACK major roads (50+), GREY local roads (40)
-        lineColor = road.speed_limit >= 50 ? "#1a1a1a" : "#999999";
-        lineWeight = 1.5 + road.lanes * 0.5;
-        lineOpacity = 0.55;
+        lineColor = getRoadColorByDensity(from.density, to.density);
+        lineWeight = 2 + road.lanes * 0.8;
+        lineOpacity = 0.6;
       }
 
-      const line = L.polyline(latlngs, {
-        color: lineColor,
-        weight: lineWeight,
-        opacity: lineOpacity,
-      });
-
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
+      const line = L.polyline(latlngs, { color: lineColor, weight: lineWeight, opacity: lineOpacity });
       line.bindTooltip(
-        `<div style="min-width:140px; font-size: 12px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m | 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes | ⏱️ ${baseCost}s
-        </div>`,
+        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
         { sticky: true, direction: "top" }
       );
-
       layers.addLayer(line);
     });
 
@@ -217,69 +189,37 @@ const UserRoutePage = () => {
       const isSource = source === j.id;
       const isDest = destination === j.id;
       const isOnRoute = allRoutePaths.has(j.id);
-
       const coords = resolveCoords(j);
+      if (!coords) return;
 
-      // Validate lat/lng values for junction marker
-      if (!coords) {
-        // eslint-disable-next-line no-console
-        console.warn(`Invalid lat/lng for junction ${j.id}`);
-        return;
-      }
-
-      const currentDensity = j.density;
-      const color = isSource
-        ? "#3b82f6"
-        : isDest
-          ? "#ef4444"
-          : currentDensity
-            ? DENSITY_COLORS[currentDensity]
-            : "#CCCCCC";
-      const radius = isSource || isDest ? 14 : isOnRoute ? 11 : getMarkerSize(j.vehicle_count);
-      const borderColor = isOnRoute ? "#FFD700" : "#fff";
-      const borderWidth = isSource || isDest ? 3 : isOnRoute ? 3 : 2;
+      const radius = isSource || isDest ? 18 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
+      const borderColor = isOnRoute ? "#FFD700" : "rgba(255,255,255,0.9)";
+      const borderWidth = isSource || isDest ? 3.5 : isOnRoute ? 3 : 2.5;
+      const specialColor = isSource ? "#3b82f6" : isDest ? "#ef4444" : undefined;
 
       const markerIcon = L.divIcon({
         className: "junction-marker",
-        html: `<div class="junction-circle ${!isSource && !isDest ? 'animate-density-pulse' : ''}" style="
-          width: ${radius * 2}px; 
-          height: ${radius * 2}px; 
-          background-color: ${color}; 
-          border: ${borderWidth}px solid ${borderColor};
-          border-radius: 50%;
-          opacity: 0.9;
-        "></div>`,
+        html: createJunctionMarkerHTML({ density: j.density, radius, borderColor, borderWidth, isSpecial: isSource || isDest, specialColor }),
         iconSize: [radius * 2, radius * 2],
         iconAnchor: [radius, radius],
       });
 
       const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
-      const pcuInfo = j.vehicle_count != null && j.total_pcu != null
-        ? `<br/><span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count} &nbsp;|&nbsp; <span style="color:#94a3b8">PCU:</span> ${j.total_pcu}`
-        : "";
       marker.bindTooltip(
-        `<div style="min-width:140px;">
-          <strong>${j.id}: ${j.name}</strong><br/>
-          <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${currentDensity || "N/A"}</strong>${pcuInfo}
-        </div>`,
-        { direction: "top", offset: [0, -8] }
+        createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
+        { direction: "top", offset: [0, -12] }
       );
-      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/><span style="color:#94a3b8">Density:</span> ${currentDensity || "N/A"}${pcuInfo}</div>`);
       layers.addLayer(marker);
 
       const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
       const labelIcon = L.divIcon({
         className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
+        html: createJunctionLabelHTML(labelText),
         iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -14],
+        iconAnchor: [Math.floor(labelWidth / 2), -16],
       });
-      L.marker([coords.lat, coords.lng], {
-        icon: labelIcon,
-        interactive: false,
-        keyboard: false,
-      }).addTo(layers);
+      L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
     });
   }, [data, routeResult, source, destination, selectedRouteIndex, mapReady]);
 
