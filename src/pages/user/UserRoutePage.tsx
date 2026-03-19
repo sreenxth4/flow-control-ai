@@ -149,15 +149,9 @@ const UserRoutePage = () => {
       const from = junctionMap.get(road.from_junction);
       const to = junctionMap.get(road.to_junction);
       if (!from || !to) return;
-
-      // Validate lat/lng values
-      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) {
-        console.warn(`Invalid lat/lng for road ${road.id}`);
-        return;
-      }
+      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) return;
       const latlngs: L.LatLngTuple[] = [[from.lat, from.lng], [to.lat, to.lng]];
 
-      // Only show the selected route on the map
       const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
 
       let lineColor: string;
@@ -169,35 +163,20 @@ const UserRoutePage = () => {
         lineWeight = 8;
         lineOpacity = 1;
       } else if (hasRoutes) {
-        // Dim all non-route roads when routes are displayed
         lineColor = "#6b7280";
         lineWeight = 1;
         lineOpacity = 0.15;
       } else {
-        // Default: BLACK major roads (50+), GREY local roads (40)
-        lineColor = road.speed_limit >= 50 ? "#1a1a1a" : "#999999";
-        lineWeight = 1.5 + road.lanes * 0.5;
-        lineOpacity = 0.55;
+        lineColor = getRoadColorByDensity(from.density, to.density);
+        lineWeight = 2 + road.lanes * 0.8;
+        lineOpacity = 0.6;
       }
 
-      const line = L.polyline(latlngs, {
-        color: lineColor,
-        weight: lineWeight,
-        opacity: lineOpacity,
-      });
-
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
+      const line = L.polyline(latlngs, { color: lineColor, weight: lineWeight, opacity: lineOpacity });
       line.bindTooltip(
-        `<div style="min-width:140px; font-size: 12px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m | 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes | ⏱️ ${baseCost}s
-        </div>`,
+        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
         { sticky: true, direction: "top" }
       );
-
       layers.addLayer(line);
     });
 
