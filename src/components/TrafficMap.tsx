@@ -121,43 +121,22 @@ export function TrafficMap({
 
       const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
       const multiRouteMatch = multiRouteRoadSets.find(r => r.set.has(`${road.from_junction}-${road.to_junction}`));
-      const roadColor = getRoadColor(road.speed_limit);
-      const weight = 1.5 + road.lanes * 0.75;
 
-      const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#FF0000" : roadColor;
-      const lineWeight = multiRouteMatch || isOnRoute ? 6 : weight;
-      const lineOpacity = multiRouteMatch || isOnRoute ? 1 : 0.7;
+      const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#FF0000" : getRoadColorByDensity(from.density, to.density);
+      const weight = multiRouteMatch || isOnRoute ? 6 : 2 + road.lanes * 0.8;
+      const lineOpacity = multiRouteMatch || isOnRoute ? 1 : 0.65;
 
       const line = L.polyline(
         [[from.lat, from.lng], [to.lat, to.lng]],
-        {
-          color: lineColor,
-          weight: lineWeight,
-          opacity: lineOpacity,
-        }
+        { color: lineColor, weight, opacity: lineOpacity }
       );
 
-      // Road details tooltip on hover
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
       line.bindTooltip(
-        `<div style="min-width:140px; font-size: 12px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m | 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes | ⏱️ ${baseCost}s
-        </div>`,
+        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
         { sticky: true, direction: "top" }
       );
-      
-      // Popup on click with more details
       line.bindPopup(
-        `<div style="min-width:160px">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          Length: ${lengthM}m | Speed: ${road.speed_limit} km/h<br/>
-          Lanes: ${road.lanes} | Base Cost: ${baseCost}s
-        </div>`
+        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes })
       );
       layers.addLayer(line);
 
