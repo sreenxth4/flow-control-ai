@@ -166,22 +166,14 @@ export function TrafficMap({
       const isDest = destinationJunction === j.id;
       const isOnRoute = allRoutePaths.has(j.id);
 
-      const currentDensity = j.density;
-      const color = !currentDensity ? "#CCCCCC" : isSource ? "#3b82f6" : isDest ? "#ef4444" : DENSITY_COLORS[currentDensity];
-      const radius = isSource || isDest ? 16 : getMarkerSize(j.vehicle_count);
-      const weight = isSource || isDest ? 3 : 2;
+      const radius = isSource || isDest ? 18 : getMarkerSize(j.vehicle_count);
+      const borderColor = isOnRoute ? "#FFD700" : "rgba(255,255,255,0.9)";
+      const borderWidth = isSource || isDest ? 3.5 : isOnRoute ? 3 : 2.5;
+      const specialColor = isSource ? "#3b82f6" : isDest ? "#ef4444" : undefined;
 
-      // Create pulsing div icon for animated density
       const markerIcon = L.divIcon({
         className: "junction-marker",
-        html: `<div class="junction-circle animate-density-pulse" style="
-          width: ${radius * 2}px; 
-          height: ${radius * 2}px; 
-          background-color: ${color}; 
-          border: ${weight}px solid ${isOnRoute ? '#FFD700' : '#fff'};
-          border-radius: 50%;
-          opacity: 0.9;
-        "></div>`,
+        html: createJunctionMarkerHTML({ density: j.density, radius, borderColor, borderWidth, isSpecial: isSource || isDest, specialColor }),
         iconSize: [radius * 2, radius * 2],
         iconAnchor: [radius, radius],
       });
@@ -192,39 +184,24 @@ export function TrafficMap({
       const outgoingRoads = roads.filter(r => r.from_junction === j.id).map(r => r.id).join(", ");
 
       marker.bindTooltip(
-        `<div style="min-width:160px;">
-          <strong>${j.id}: ${j.name}</strong><br/>
-          <span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count ?? 0} &nbsp;|&nbsp; <span style="color:#94a3b8">Density:</span> <strong style="color:${color}">${currentDensity || "N/A"}</strong><br/>
-          ${j.total_pcu ? `<span style="color:#94a3b8">PCU:</span> ${j.total_pcu}<br/>` : ""}
-          <span style="color:#94a3b8">In:</span> ${incomingRoads || "none"} &nbsp;|&nbsp; <span style="color:#94a3b8">Out:</span> ${outgoingRoads || "none"}
-        </div>`,
-        { direction: "top", offset: [0, -8] }
+        createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
+        { direction: "top", offset: [0, -12] }
       );
       marker.bindPopup(
-        `<div style="min-width:180px">
-          <strong>${j.id}: ${j.name}</strong><br/>
-          <span style="color:#94a3b8">Vehicles:</span> ${j.vehicle_count ?? 0} &nbsp;|&nbsp; <span style="color:#94a3b8">Density:</span> <strong>${currentDensity || "N/A"}</strong><br/>
-          ${j.total_pcu ? `<span style="color:#94a3b8">PCU:</span> ${j.total_pcu}<br/>` : ""}
-          <span style="color:#94a3b8">Incoming:</span> ${incomingRoads || "none"}<br/>
-          <span style="color:#94a3b8">Outgoing:</span> ${outgoingRoads || "none"}
-        </div>`
+        createJunctionPopupHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu, incomingRoads, outgoingRoads })
       );
       marker.on("click", () => onJunctionClick(j.id));
       layers.addLayer(marker);
 
       const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
+      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
       const labelIcon = L.divIcon({
         className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 8px; border-radius:6px; background:rgba(15,23,42,0.85); color:#f1f5f9; border:1px solid rgba(100,116,139,0.3); font-size:10px; font-weight:600; line-height:1.3; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.25);">${labelText}</div>`,
+        html: createJunctionLabelHTML(labelText),
         iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -14],
+        iconAnchor: [Math.floor(labelWidth / 2), -16],
       });
-      L.marker([j.lat, j.lng], {
-        icon: labelIcon,
-        interactive: false,
-        keyboard: false,
-      }).addTo(layers);
+      L.marker([j.lat, j.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
     });
 
     // Draw turn restrictions at zoom 15+
