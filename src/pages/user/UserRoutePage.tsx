@@ -22,8 +22,12 @@ import {
   createJunctionLabelHTML,
   createJunctionTooltipHTML,
   createRoadTooltipHTML,
+  createSignalDotHTML,
+  getSignalDotOffsets,
   resolveCoords,
 } from "@/components/map-utils";
+import { fetchAllRoadGeometries } from "@/lib/osrm";
+import type { DensityLevel } from "@/lib/types";
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
 // Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
