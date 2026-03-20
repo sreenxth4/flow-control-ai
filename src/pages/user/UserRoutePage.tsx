@@ -22,8 +22,12 @@ import {
   createJunctionLabelHTML,
   createJunctionTooltipHTML,
   createRoadTooltipHTML,
+  createSignalDotHTML,
+  getSignalDotOffsets,
   resolveCoords,
 } from "@/components/map-utils";
+import { fetchAllRoadGeometries } from "@/lib/osrm";
+
 
 // Route colors: Green=fastest, Amber=alternate, Blue=longer
 // Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
@@ -107,120 +111,149 @@ const UserRoutePage = () => {
     return () => { map.remove(); mapRef.current = null; layersRef.current = null; setMapReady(false); };
   }, []);
 
-  // Update map
+  // Update map with OSRM geometry
   useEffect(() => {
     const layers = layersRef.current;
     if (!layers || !data || !mapReady) return;
-    layers.clearLayers();
 
-    const safeJunctions = Array.isArray(data.junctions) ? data.junctions : [];
-    const safeRoads = Array.isArray(data.roads) ? data.roads : [];
+    let cancelled = false;
 
-    const junctionMap = new Map(
-      safeJunctions
-        .map((j) => {
-          const coords = resolveCoords(j);
-          if (!coords) return null;
-          return [j.id, { ...j, lat: coords.lat, lng: coords.lng }] as const;
-        })
-        .filter((entry): entry is readonly [string, (typeof safeJunctions)[number] & { lat: number; lng: number }] => entry !== null)
-    );
-    const routes = routeResult?.routes || [];
-    const selectedRoute = routes[selectedRouteIndex];
-    const routeColors = getRouteColorByRank(routes);
-    
-    // Build route road sets for each route
-    const routeRoadSets = routes.map((route, idx) => {
-      const set = new Set<string>();
-      if (route.success && route.path.length > 1) {
-        for (let i = 0; i < route.path.length - 1; i++) {
-          set.add(`${route.path[i]}-${route.path[i + 1]}`);
-          set.add(`${route.path[i + 1]}-${route.path[i]}`);
+    const draw = async () => {
+      const safeJunctions = Array.isArray(data.junctions) ? data.junctions : [];
+      const safeRoads = Array.isArray(data.roads) ? data.roads : [];
+
+      const junctionMap = new Map(
+        safeJunctions
+          .map((j) => {
+            const coords = resolveCoords(j);
+            if (!coords) return null;
+            return [j.id, { ...j, lat: coords.lat, lng: coords.lng }] as const;
+          })
+          .filter((entry): entry is readonly [string, (typeof safeJunctions)[number] & { lat: number; lng: number }] => entry !== null)
+      );
+
+      // Fetch real road geometries
+      const coordsMap = new Map<string, { lat: number; lng: number }>();
+      junctionMap.forEach((v, k) => coordsMap.set(k, { lat: v.lat, lng: v.lng }));
+      const geometries = await fetchAllRoadGeometries(safeRoads, coordsMap);
+
+      if (cancelled) return;
+      layers.clearLayers();
+
+      const routes = routeResult?.routes || [];
+      const routeColors = getRouteColorByRank(routes);
+
+      const routeRoadSets = routes.map((route, idx) => {
+        const set = new Set<string>();
+        if (route.success && route.path.length > 1) {
+          for (let i = 0; i < route.path.length - 1; i++) {
+            set.add(`${route.path[i]}-${route.path[i + 1]}`);
+            set.add(`${route.path[i + 1]}-${route.path[i]}`);
+          }
         }
-      }
-      const isSelected = idx === selectedRouteIndex;
-      return { set, color: routeColors[idx], isSelected };
-    });
-
-    const hasRoutes = routes.length > 0;
-
-    // Roads
-    safeRoads.forEach((road) => {
-      const from = junctionMap.get(road.from_junction);
-      const to = junctionMap.get(road.to_junction);
-      if (!from || !to) return;
-      if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) return;
-      const latlngs: L.LatLngTuple[] = [[from.lat, from.lng], [to.lat, to.lng]];
-
-      const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
-
-      let lineColor: string;
-      let lineWeight: number;
-      let lineOpacity: number;
-
-      if (matchingRoute) {
-        lineColor = matchingRoute.color;
-        lineWeight = 8;
-        lineOpacity = 1;
-      } else if (hasRoutes) {
-        lineColor = "#6b7280";
-        lineWeight = 1;
-        lineOpacity = 0.15;
-      } else {
-        lineColor = getRoadColorByDensity(from.density, to.density);
-        lineWeight = 2 + road.lanes * 0.8;
-        lineOpacity = 0.6;
-      }
-
-      const line = L.polyline(latlngs, { color: lineColor, weight: lineWeight, opacity: lineOpacity });
-      line.bindTooltip(
-        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
-        { sticky: true, direction: "top" }
-      );
-      layers.addLayer(line);
-    });
-
-    // All route paths for junction highlighting
-    const allRoutePaths = new Set<string>();
-    routes.forEach(r => r.path?.forEach(p => allRoutePaths.add(p)));
-
-    // Junctions
-    safeJunctions.forEach((j) => {
-      const isSource = source === j.id;
-      const isDest = destination === j.id;
-      const isOnRoute = allRoutePaths.has(j.id);
-      const coords = resolveCoords(j);
-      if (!coords) return;
-
-      const radius = isSource || isDest ? 18 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
-      const borderColor = isOnRoute ? "#FFD700" : "rgba(255,255,255,0.9)";
-      const borderWidth = isSource || isDest ? 3.5 : isOnRoute ? 3 : 2.5;
-      const specialColor = isSource ? "#3b82f6" : isDest ? "#ef4444" : undefined;
-
-      const markerIcon = L.divIcon({
-        className: "junction-marker",
-        html: createJunctionMarkerHTML({ density: j.density, radius, borderColor, borderWidth, isSpecial: isSource || isDest, specialColor }),
-        iconSize: [radius * 2, radius * 2],
-        iconAnchor: [radius, radius],
+        const isSelected = idx === selectedRouteIndex;
+        return { set, color: routeColors[idx], isSelected };
       });
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
-      marker.bindTooltip(
-        createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
-        { direction: "top", offset: [0, -12] }
-      );
-      layers.addLayer(marker);
+      const hasRoutes = routes.length > 0;
 
-      const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
-      const labelIcon = L.divIcon({
-        className: "junction-name-label",
-        html: createJunctionLabelHTML(labelText),
-        iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -16],
+      // Roads with OSRM geometry
+      safeRoads.forEach((road) => {
+        const from = junctionMap.get(road.from_junction);
+        const to = junctionMap.get(road.to_junction);
+        if (!from || !to) return;
+        if ([from.lat, from.lng, to.lat, to.lng].some(v => typeof v !== "number" || isNaN(v))) return;
+
+        const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
+
+        let lineColor: string;
+        let lineWeight: number;
+        let lineOpacity: number;
+
+        if (matchingRoute) {
+          lineColor = matchingRoute.color;
+          lineWeight = 8;
+          lineOpacity = 1;
+        } else if (hasRoutes) {
+          lineColor = "#6b7280";
+          lineWeight = 1;
+          lineOpacity = 0.15;
+        } else {
+          lineColor = getRoadColorByDensity(from.density, to.density);
+          lineWeight = 2 + road.lanes * 0.8;
+          lineOpacity = 0.6;
+        }
+
+        const routeCoords = geometries.get(road.id) || [[from.lat, from.lng], [to.lat, to.lng]];
+        const line = L.polyline(routeCoords as L.LatLngTuple[], { color: lineColor, weight: lineWeight, opacity: lineOpacity });
+        line.bindTooltip(
+          createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
+          { sticky: true, direction: "top" }
+        );
+        layers.addLayer(line);
       });
-      L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
-    });
+
+      // All route paths for junction highlighting
+      const allRoutePaths = new Set<string>();
+      routes.forEach(r => r.path?.forEach(p => allRoutePaths.add(p)));
+
+      // Density map for signal dots
+      const densityMap = new Map<string, { lat: number; lng: number; density?: DensityLevel }>();
+      junctionMap.forEach((v, k) => densityMap.set(k, { lat: v.lat, lng: v.lng, density: v.density }));
+
+      // Junctions + signal dots
+      safeJunctions.forEach((j) => {
+        const isSource = source === j.id;
+        const isDest = destination === j.id;
+        const isOnRoute = allRoutePaths.has(j.id);
+        const coords = resolveCoords(j);
+        if (!coords) return;
+
+        const radius = isSource || isDest ? 18 : isOnRoute ? 14 : getMarkerSize(j.vehicle_count);
+        const borderColor = isOnRoute ? "#FFD700" : "rgba(255,255,255,0.9)";
+        const borderWidth = isSource || isDest ? 3.5 : isOnRoute ? 3 : 2.5;
+        const specialColor = isSource ? "#3b82f6" : isDest ? "#ef4444" : undefined;
+
+        const markerIcon = L.divIcon({
+          className: "junction-marker",
+          html: createJunctionMarkerHTML({ density: j.density, radius, borderColor, borderWidth, isSpecial: isSource || isDest, specialColor }),
+          iconSize: [radius * 2, radius * 2],
+          iconAnchor: [radius, radius],
+        });
+
+        const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
+        marker.bindTooltip(
+          createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
+          { direction: "top", offset: [0, -12] }
+        );
+        layers.addLayer(marker);
+
+        const labelText = (j.name || j.id || "").trim() || j.id;
+        const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
+        const labelIcon = L.divIcon({
+          className: "junction-name-label",
+          html: createJunctionLabelHTML(labelText),
+          iconSize: [labelWidth, 20],
+          iconAnchor: [Math.floor(labelWidth / 2), -16],
+        });
+        L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
+
+        // Signal direction dots
+        const dots = getSignalDotOffsets(j.id, coords.lat, coords.lng, safeRoads, densityMap);
+        dots.forEach((dot) => {
+          const dotIcon = L.divIcon({
+            className: "signal-dot",
+            html: createSignalDotHTML(dot.density),
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          });
+          L.marker([dot.lat, dot.lng], { icon: dotIcon, interactive: false, keyboard: false }).addTo(layers);
+        });
+      });
+    };
+
+    draw();
+    return () => { cancelled = true; };
   }, [data, routeResult, source, destination, selectedRouteIndex, mapReady]);
 
   const handleFindRoute = useCallback(async () => {

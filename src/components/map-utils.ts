@@ -1,5 +1,56 @@
 import type { DensityLevel } from "@/lib/types";
 
+// ─── Signal direction dot helpers ───
+
+/**
+ * Create a small colored dot representing incoming road density.
+ */
+export function createSignalDotHTML(density?: DensityLevel | null): string {
+  const color = density ? DENSITY_COLORS[density] : NO_DATA_COLOR;
+  const glow = density ? DENSITY_GLOW[density] : NO_DATA_GLOW;
+  return `<div style="
+    width: 10px; height: 10px;
+    background: ${color};
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.85);
+    box-shadow: 0 0 6px 2px ${glow}, 0 1px 3px rgba(0,0,0,0.3);
+  "></div>`;
+}
+
+/**
+ * Compute positions for signal dots around a junction.
+ * Each dot represents a connected road, colored by the other end's density.
+ */
+export function getSignalDotOffsets(
+  junctionId: string,
+  junctionLat: number,
+  junctionLng: number,
+  roads: { from_junction: string; to_junction: string }[],
+  junctionMap: Map<string, { lat: number; lng: number; density?: DensityLevel }>
+): { lat: number; lng: number; density?: DensityLevel }[] {
+  const connected = roads.filter(
+    (r) => r.from_junction === junctionId || r.to_junction === junctionId
+  );
+  const dots: { lat: number; lng: number; density?: DensityLevel }[] = [];
+  const offset = 0.00035;
+
+  connected.forEach((road) => {
+    const otherId =
+      road.from_junction === junctionId ? road.to_junction : road.from_junction;
+    const other = junctionMap.get(otherId);
+    if (!other) return;
+
+    const bearing = Math.atan2(other.lng - junctionLng, other.lat - junctionLat);
+    dots.push({
+      lat: junctionLat + Math.cos(bearing) * offset,
+      lng: junctionLng + Math.sin(bearing) * offset,
+      density: other.density,
+    });
+  });
+
+  return dots;
+}
+
 // Enhanced density colors with gradients
 export const DENSITY_COLORS: Record<DensityLevel, string> = {
   LOW: "#22c55e",
