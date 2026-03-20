@@ -298,6 +298,24 @@
   border: none !important;
 }
 
+/* Signal direction dots around junctions */
+.signal-dot {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none !important;
+  z-index: 600 !important;
+}
+
+.signal-dot > div {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: signal-dot-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes signal-dot-pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
 /* Legacy class support */
 .junction-circle {
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
