@@ -10,7 +10,7 @@ import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock } from "lucide-react"
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@/components/map-styles.css";
-import type { Junction } from "@/lib/types";
+import type { Junction, DensityLevel } from "@/lib/types";
 import {
   getRoadColorByDensity,
   getMarkerSize,
@@ -19,8 +19,11 @@ import {
   createJunctionTooltipHTML,
   createJunctionPopupHTML,
   createRoadTooltipHTML,
+  createSignalDotHTML,
+  getSignalDotOffsets,
   resolveCoords,
 } from "@/components/map-utils";
+import { fetchAllRoadGeometries } from "@/lib/osrm";
 
 export function TrafficDashboard() {
   const { data: mapData, isLoading: mapLoading } = useMapData();
@@ -31,7 +34,7 @@ export function TrafficDashboard() {
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.LayerGroup | null>(null);
 
-  // Init map - Kukatpally center
+  // Init map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     const map = L.map(mapContainerRef.current, {
@@ -48,75 +51,103 @@ export function TrafficDashboard() {
     return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
   }, []);
 
-  // Update markers + roads
+  // Update markers + roads with OSRM geometry
   useEffect(() => {
     const layers = layersRef.current;
     if (!layers || !mapData) return;
-    layers.clearLayers();
 
-    const safeJunctions = Array.isArray(mapData.junctions) ? mapData.junctions : [];
-    const safeRoads = Array.isArray(mapData.roads) ? mapData.roads : [];
+    let cancelled = false;
 
-    const junctionMap = new Map<string, Junction>();
-    safeJunctions.forEach((j) => {
-      const coords = resolveCoords(j);
-      if (!coords) return;
-      junctionMap.set(j.id, { ...j, lat: coords.lat, lng: coords.lng });
-    });
+    const draw = async () => {
+      const safeJunctions = Array.isArray(mapData.junctions) ? mapData.junctions : [];
+      const safeRoads = Array.isArray(mapData.roads) ? mapData.roads : [];
 
-    // Roads with density-based coloring
-    safeRoads.forEach((road) => {
-      const from = junctionMap.get(road.from_junction);
-      const to = junctionMap.get(road.to_junction);
-      if (!from || !to) return;
-
-      const lineColor = getRoadColorByDensity(from.density, to.density);
-      const weight = 2 + road.lanes * 0.8;
-
-      const line = L.polyline(
-        [[from.lat, from.lng], [to.lat, to.lng]],
-        { color: lineColor, weight, opacity: 0.65 }
-      );
-      line.bindTooltip(
-        createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
-        { sticky: true, direction: "top" }
-      );
-      layers.addLayer(line);
-    });
-
-    // Junctions
-    safeJunctions.forEach((j) => {
-      const coords = resolveCoords(j);
-      if (!coords) return;
-
-      const radius = getMarkerSize(j.vehicle_count);
-      const markerIcon = L.divIcon({
-        className: "junction-marker",
-        html: createJunctionMarkerHTML({ density: j.density, radius }),
-        iconSize: [radius * 2, radius * 2],
-        iconAnchor: [radius, radius],
+      const junctionMap = new Map<string, Junction>();
+      const coordsMap = new Map<string, { lat: number; lng: number }>();
+      safeJunctions.forEach((j) => {
+        const coords = resolveCoords(j);
+        if (!coords) return;
+        junctionMap.set(j.id, { ...j, lat: coords.lat, lng: coords.lng });
+        coordsMap.set(j.id, { lat: coords.lat, lng: coords.lng });
       });
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
-      marker.bindTooltip(
-        createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
-        { direction: "top", offset: [0, -12] }
-      );
-      marker.bindPopup(
-        createJunctionPopupHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu })
-      );
-      layers.addLayer(marker);
+      const geometries = await fetchAllRoadGeometries(safeRoads, coordsMap);
+      if (cancelled) return;
+      layers.clearLayers();
 
-      const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
-      const labelIcon = L.divIcon({
-        className: "junction-name-label",
-        html: createJunctionLabelHTML(labelText),
-        iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -16],
+      // Roads with OSRM geometry
+      safeRoads.forEach((road) => {
+        const from = junctionMap.get(road.from_junction);
+        const to = junctionMap.get(road.to_junction);
+        if (!from || !to) return;
+
+        const lineColor = getRoadColorByDensity(from.density, to.density);
+        const weight = 2 + road.lanes * 0.8;
+        const routeCoords = geometries.get(road.id) || [[from.lat, from.lng], [to.lat, to.lng]];
+
+        const line = L.polyline(routeCoords as L.LatLngTuple[], { color: lineColor, weight, opacity: 0.65 });
+        line.bindTooltip(
+          createRoadTooltipHTML({ name: road.name, from: road.from_junction, to: road.to_junction, lengthKm: road.length_km, speedLimit: road.speed_limit, lanes: road.lanes }),
+          { sticky: true, direction: "top" }
+        );
+        layers.addLayer(line);
       });
-      L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
-    });
+
+      // Junctions + signal dots
+      const densityMap = new Map<string, { lat: number; lng: number; density?: DensityLevel }>();
+      safeJunctions.forEach((j) => {
+        const coords = resolveCoords(j);
+        if (coords) densityMap.set(j.id, { lat: coords.lat, lng: coords.lng, density: j.density });
+      });
+
+      safeJunctions.forEach((j) => {
+        const coords = resolveCoords(j);
+        if (!coords) return;
+
+        const radius = getMarkerSize(j.vehicle_count);
+        const markerIcon = L.divIcon({
+          className: "junction-marker",
+          html: createJunctionMarkerHTML({ density: j.density, radius }),
+          iconSize: [radius * 2, radius * 2],
+          iconAnchor: [radius, radius],
+        });
+
+        const marker = L.marker([coords.lat, coords.lng], { icon: markerIcon });
+        marker.bindTooltip(
+          createJunctionTooltipHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu }),
+          { direction: "top", offset: [0, -12] }
+        );
+        marker.bindPopup(
+          createJunctionPopupHTML({ id: j.id, name: j.name, density: j.density, vehicleCount: j.vehicle_count, totalPcu: j.total_pcu })
+        );
+        layers.addLayer(marker);
+
+        const labelText = (j.name || j.id || "").trim() || j.id;
+        const labelWidth = Math.min(240, Math.max(64, labelText.length * 7.5));
+        const labelIcon = L.divIcon({
+          className: "junction-name-label",
+          html: createJunctionLabelHTML(labelText),
+          iconSize: [labelWidth, 20],
+          iconAnchor: [Math.floor(labelWidth / 2), -16],
+        });
+        L.marker([coords.lat, coords.lng], { icon: labelIcon, interactive: false, keyboard: false }).addTo(layers);
+
+        // Signal direction dots
+        const dots = getSignalDotOffsets(j.id, coords.lat, coords.lng, safeRoads, densityMap);
+        dots.forEach((dot) => {
+          const dotIcon = L.divIcon({
+            className: "signal-dot",
+            html: createSignalDotHTML(dot.density),
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          });
+          L.marker([dot.lat, dot.lng], { icon: dotIcon, interactive: false, keyboard: false }).addTo(layers);
+        });
+      });
+    };
+
+    draw();
+    return () => { cancelled = true; };
   }, [mapData]);
 
   // Group signal phases by junction
@@ -125,7 +156,7 @@ export function TrafficDashboard() {
   const phasesByJunction = mapData
     ? safeJunctions.map((j) => ({
         junction: j,
-        phases: safeSignalPhases.filter((sp) => sp?.junction_id === j.id),
+        phases: safeSignalPhases.filter((sp: any) => sp?.junction_id === j.id),
       }))
     : [];
 
@@ -170,12 +201,12 @@ export function TrafficDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {phases.map((sp, idx) => (
+                          {phases.map((sp: any, idx: number) => (
                             <TableRow key={`${junction.id}-${sp.phase_name || "phase"}-${idx}`}>
                               <TableCell className="text-sm">{(sp.phase_name ?? "").replace(junction.name + " ", "")}</TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {(Array.isArray(sp?.green_roads) ? sp.green_roads : []).map((r, roadIdx) => (
+                                  {(Array.isArray(sp?.green_roads) ? sp.green_roads : []).map((r: string, roadIdx: number) => (
                                     <Badge key={`${junction.id}-${sp.phase_name || "phase"}-${r}-${roadIdx}`} variant="outline" className="text-xs">{r}</Badge>
                                   ))}
                                 </div>
@@ -196,7 +227,6 @@ export function TrafficDashboard() {
 
         {/* Health + Performance */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* System Health */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -237,7 +267,6 @@ export function TrafficDashboard() {
             </CardContent>
           </Card>
 
-          {/* Performance Diagnostics */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
@@ -264,7 +293,6 @@ export function TrafficDashboard() {
                       {perf.summary?.total_time ?? 0}s
                     </span>
                   </div>
-                  {/* Breakdown bar */}
                   <div className="mt-2 space-y-1.5">
                     <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
                     <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
@@ -279,7 +307,6 @@ export function TrafficDashboard() {
           </Card>
         </div>
 
-        {/* Auto-refresh note */}
         <p className="pb-4 text-center text-xs text-muted-foreground">Auto-refreshes every 60 seconds</p>
       </div>
     </div>
