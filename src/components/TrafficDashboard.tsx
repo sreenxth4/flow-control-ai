@@ -1,14 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DensityBadge } from "@/components/DensityBadge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useMapData, usePerformance, useHealth } from "@/hooks/use-map-data";
+import { useMapData, usePerformance, useHealth, useTrafficState } from "@/hooks/use-map-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Heart, Gauge, Signal, CheckCircle, XCircle, Clock } from "lucide-react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { TrafficMap } from "@/components/TrafficMap";
+import "./junction-label.css";
 import type { DensityLevel, Junction } from "@/lib/types";
 
 // Density colors: GREEN/ORANGE/RED
@@ -40,119 +40,75 @@ export function TrafficDashboard() {
   const { data: perf, isLoading: perfLoading } = usePerformance();
   const { data: health, isLoading: healthLoading } = useHealth();
 
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const layersRef = useRef<L.LayerGroup | null>(null);
+  const dashboardJunctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
+  const safeRoads = Array.isArray(mapData?.roads) ? mapData.roads : [];
+  const { data: trafficStateData } = useTrafficState();
 
-  // Init map - Kukatpally center
+  // Poll junction signals for live per-road data
+  const [junctionSignals, setJunctionSignals] = useState<Record<string, any>>({});
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    const map = L.map(mapContainerRef.current, {
-      center: [17.49, 78.38],
-      zoom: 14,
-      zoomControl: false,
-    });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    mapRef.current = map;
-    layersRef.current = L.layerGroup().addTo(map);
-    return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
+    const poll = () => {
+      fetch("http://localhost:5000/api/junction_signals")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.junctions) setJunctionSignals(data.junctions);
+        })
+        .catch(() => {});
+    };
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => clearInterval(iv);
   }, []);
 
-  // Update markers + roads
+  // Anchor-based smooth countdown: persist across polls
+  const countdownAnchorsRef = useRef<Record<string, { anchorTime: number; anchorRemaining: number; activeGreenRoad: string }>>({});
+
+  // When signal data arrives, set/update anchors (only reset on phase change)
   useEffect(() => {
-    const layers = layersRef.current;
-    if (!layers || !mapData) return;
-    layers.clearLayers();
-
-    const safeJunctions = Array.isArray(mapData.junctions) ? mapData.junctions : [];
-    const safeRoads = Array.isArray(mapData.roads) ? mapData.roads : [];
-
-    const junctionMap = new Map<string, Junction>();
-    safeJunctions.forEach((j) => {
-      const coords = resolveCoords(j);
-      if (!coords) return;
-      junctionMap.set(j.id, { ...j, lat: coords.lat, lng: coords.lng });
+    const now = Date.now();
+    Object.entries(junctionSignals).forEach(([jId, sig]: [string, any]) => {
+      const activeGreen = sig?.active_green_road || "";
+      const timeRemaining = sig?.time_remaining ?? 0;
+      const existing = countdownAnchorsRef.current[jId];
+      if (!existing || existing.activeGreenRoad !== activeGreen) {
+        countdownAnchorsRef.current[jId] = { anchorTime: now, anchorRemaining: timeRemaining, activeGreenRoad: activeGreen };
+      }
     });
+  }, [junctionSignals]);
 
-    // Roads
-    safeRoads.forEach((road) => {
-      const from = junctionMap.get(road.from_junction);
-      const to = junctionMap.get(road.to_junction);
-      if (!from || !to) return;
-      if (!isValidCoord(from.lat, from.lng) || !isValidCoord(to.lat, to.lng)) return;
+  // Current time state: updated every second to drive smooth countdown rendering
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
 
-      const roadColor = getRoadColor(road.speed_limit);
-      const weight = 1.5 + road.lanes * 0.75;
-
-      const line = L.polyline(
-        [[from.lat, from.lng], [to.lat, to.lng]],
-        {
-          color: roadColor,
-          weight,
-          opacity: 0.7,
-        }
-      );
-      
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
-      line.bindPopup(
-        `<div style="min-width:160px">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          Length: ${(road.length_km * 1000).toFixed(0)}m | Speed: ${road.speed_limit} km/h<br/>
-          Lanes: ${road.lanes} | Base Cost: ${baseCost}s
-        </div>`
-      );
-      layers.addLayer(line);
-    });
-
-    // Junctions
-    safeJunctions.forEach((j) => {
-      const coords = resolveCoords(j);
-      if (!coords || !isValidCoord(coords.lat, coords.lng)) return;
-
-      const color = j.density ? DENSITY_COLORS[j.density] : "#CCCCCC";
-      const radius = getMarkerSize(j.vehicle_count);
-
-      const marker = L.circleMarker([coords.lat, coords.lng], {
-        radius,
-        fillColor: color,
-        fillOpacity: 0.9,
-        color: "#fff",
-        weight: 2,
-      });
-      const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
-      marker.bindPopup(`<div style="min-width:160px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${j.density || "No data"}${pcuInfo}</div>`);
-      layers.addLayer(marker);
-    });
-  }, [mapData]);
-
-  // Group signal phases by junction
-  const safeJunctions = mapData && Array.isArray(mapData.junctions) ? mapData.junctions : [];
-  const safeSignalPhases = mapData && Array.isArray((mapData as any).signal_phases) ? (mapData as any).signal_phases : [];
-  const phasesByJunction = mapData
-    ? safeJunctions.map((j) => ({
-        junction: j,
-        phases: safeSignalPhases.filter((sp) => sp?.junction_id === j.id),
-      }))
-    : [];
+  // Build road name lookup
+  const roadNameMap = useRef<Record<string, string>>({});
+  useEffect(() => {
+    safeRoads.forEach((r: any) => { roadNameMap.current[r.id] = r.name; });
+  }, [safeRoads]);
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       {/* Map */}
-      <div className="h-[45vh] min-h-[300px] flex-shrink-0">
-        <div ref={mapContainerRef} className="h-full w-full" />
+      <div className="h-[45vh] min-h-[300px] flex-shrink-0 overflow-hidden relative" style={{ isolation: "isolate" }}>
+        <TrafficMap
+          junctions={dashboardJunctions}
+          roads={safeRoads}
+          roadStates={trafficStateData?.road_states || {}}
+          flyTo={null}
+          onJunctionClick={useCallback(() => {}, [])}
+        />
       </div>
 
       {/* Content below map */}
       <div className="space-y-5 p-5">
-        {/* Signal Phases Accordion */}
-        <Card>
+        {/* Live Junction Signals */}
+        <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Signal className="h-4 w-4 text-traffic-medium" /> Signal Phases — Kukatpally Zone
+              <Signal className="h-4 w-4 text-traffic-medium" /> Live Junction Signals — Kukatpally Zone
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -160,45 +116,81 @@ export function TrafficDashboard() {
               <Skeleton className="h-40" />
             ) : (
               <Accordion type="multiple" className="w-full">
-                {phasesByJunction.map(({ junction, phases }) => (
-                  <AccordionItem key={junction.id} value={junction.id}>
-                    <AccordionTrigger className="text-sm hover:no-underline">
-                      <div className="flex items-center gap-3">
-                        <span className="font-medium">{junction.id} — {junction.name}</span>
-                        <DensityBadge level={junction.density} />
-                        <span className="text-xs text-muted-foreground">{phases.length} phases</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Phase Name</TableHead>
-                            <TableHead>Green Roads</TableHead>
-                            <TableHead className="text-right">Min Green (s)</TableHead>
-                            <TableHead className="text-right">Max Green (s)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {phases.map((sp, idx) => (
-                            <TableRow key={`${junction.id}-${sp.phase_name || "phase"}-${idx}`}>
-                              <TableCell className="text-sm">{(sp.phase_name ?? "").replace(junction.name + " ", "")}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {(Array.isArray(sp?.green_roads) ? sp.green_roads : []).map((r, roadIdx) => (
-                                    <Badge key={`${junction.id}-${sp.phase_name || "phase"}-${r}-${roadIdx}`} variant="outline" className="text-xs">{r}</Badge>
-                                  ))}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">{sp.min_green}</TableCell>
-                              <TableCell className="text-right">{sp.max_green}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
+                {dashboardJunctions.map((junction) => {
+                  const sig = junctionSignals[junction.id];
+                  const sigRoads = sig?.roads || {};
+                  const roadIds = Object.keys(sigRoads);
+                  const activeGreen = sig?.active_green_road || "";
+                  const activeGreenName = roadNameMap.current[activeGreen] || activeGreen;
+                  const timeRemaining = sig?.time_remaining ?? 0;
+                  const densityLevel = sig?.density_level || junction.density;
+
+                  const anchor = countdownAnchorsRef.current[junction.id];
+                  const smoothCountdown = anchor
+                    ? Math.max(0, anchor.anchorRemaining - Math.floor((now - anchor.anchorTime) / 1000))
+                    : timeRemaining;
+
+                  return (
+                    <AccordionItem key={junction.id} value={junction.id}>
+                      <AccordionTrigger className="text-sm hover:no-underline">
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium">{junction.id} — {junction.name}</span>
+                          <DensityBadge level={densityLevel} />
+                          <span className="text-xs text-muted-foreground">{roadIds.length} roads</span>
+                          {activeGreen && (
+                            <Badge variant="outline" className="text-xs border-green-500 text-green-600">
+                              🟢 {activeGreenName} — {smoothCountdown}s
+                            </Badge>
+                          )}
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {roadIds.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">No signal data available yet.</p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[40px]">⚡</TableHead>
+                                <TableHead>Road ID</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead className="text-right">PCU</TableHead>
+                                <TableHead className="text-right">Vehicles</TableHead>
+                                <TableHead className="text-right">Wait</TableHead>
+                                <TableHead className="w-[40px]">Dens</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {roadIds.map((rId) => {
+                                const rd = sigRoads[rId];
+                                const isGreen = rd?.signal === "GREEN";
+                                const dotColor = rd?.density === "HIGH" ? "#ef4444" : rd?.density === "MEDIUM" ? "#f59e0b" : "#22c55e";
+                                // Smooth wait time: for RED roads, add elapsed seconds since last poll
+                                const baseWait = rd?.wait_time ?? 0;
+                                const smoothWait = isGreen ? 0 : baseWait + Math.floor((now - (anchor?.anchorTime ?? now)) / 1000);
+                                return (
+                                  <TableRow key={rId} className={isGreen ? "bg-green-50 dark:bg-green-950/20" : ""}>
+                                    <TableCell>{isGreen ? "🟢" : "🔴"}</TableCell>
+                                    <TableCell className="font-mono text-xs">{rId}</TableCell>
+                                    <TableCell className="text-sm">{roadNameMap.current[rId] || "—"}</TableCell>
+                                    <TableCell className="text-right font-mono">{rd?.pcu ?? "—"}</TableCell>
+                                    <TableCell className="text-right font-mono">{rd?.vehicles ?? "—"}</TableCell>
+                                    <TableCell className="text-right font-mono" style={{ color: isGreen ? "#888" : "#ef4444" }}>
+                                      {isGreen ? "—" : `${smoothWait}s`}
+                                    </TableCell>
+                                    <TableCell>
+                                      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: dotColor, border: "1px solid #e5e7eb" }} />
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
               </Accordion>
             )}
           </CardContent>
@@ -207,7 +199,7 @@ export function TrafficDashboard() {
         {/* Health + Performance */}
         <div className="grid gap-4 md:grid-cols-2">
           {/* System Health */}
-          <Card>
+          <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Heart className="h-4 w-4 text-traffic-low" /> System Health
@@ -248,7 +240,7 @@ export function TrafficDashboard() {
           </Card>
 
           {/* Performance Diagnostics */}
-          <Card>
+          <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Gauge className="h-4 w-4 text-primary" /> Performance Diagnostics
@@ -261,25 +253,25 @@ export function TrafficDashboard() {
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Total Frames</span>
-                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? perf.summary?.total_frames_processed ?? 0}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.total_frames ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Average FPS</span>
-                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? perf.summary?.average_processing_fps ?? 0}</span>
+                    <span className="font-medium text-foreground">{perf.summary?.average_fps ?? 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Processing Time</span>
                     <span className="flex items-center gap-1 font-medium text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      {perf.summary?.total_time ?? perf.summary?.processing_time_seconds ?? 0}s
+                      {perf.summary?.total_time ?? 0}s
                     </span>
                   </div>
                   {/* Breakdown bar */}
                   <div className="mt-2 space-y-1.5">
                     <p className="text-xs font-medium text-muted-foreground">Breakdown</p>
-                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? perf.performance_profile?.detect_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
-                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? perf.performance_profile?.track_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
-                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? perf.performance_profile?.analyze_seconds ?? 0} total={perf.performance_profile?.total_time ?? perf.performance_profile?.total_seconds ?? 0} />
+                    <PerfBar label="Detection" value={perf.performance_profile?.detect_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
+                    <PerfBar label="Tracking" value={perf.performance_profile?.track_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
+                    <PerfBar label="Analysis" value={perf.performance_profile?.analyze_time ?? 0} total={perf.performance_profile?.total_time ?? 0} />
                   </div>
                 </div>
               ) : (

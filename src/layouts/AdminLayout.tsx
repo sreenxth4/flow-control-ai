@@ -10,7 +10,7 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-950 text-zinc-100 dark">
+    <div className="flex h-screen flex-col bg-background text-foreground tracking-tight">
       <AdminHeader />
       <main className="flex-1 overflow-hidden">
         <Outlet />

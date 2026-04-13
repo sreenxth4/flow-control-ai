@@ -1,4 +1,4 @@
-import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult, VehicleDistribution, TurnRestriction, MultiRouteResult, CongestedJunction } from "./types";
+import type { MapData, JunctionDetail, PerformanceData, HealthStatus, DensityLevel, NetworkStatus, RouteResult, VehicleDistribution, TurnRestriction, MultiRouteResult, CongestedJunction, TrafficStateResponse } from "./types";
 
 const densities: DensityLevel[] = ["LOW", "MEDIUM", "HIGH"];
 
@@ -396,6 +396,51 @@ export function getMockMultipleRoutes(sourceRef: string | number, destRef: strin
   });
 
   return { routes };
+}
+
+// Add Mock Traffic State for Phase 7
+export function getMockTrafficState(): TrafficStateResponse {
+  const road_states: Record<string, import("./types").RoadState> = {};
+  const mockMapData = getMockMapData();
+  
+  // Generate semi-random mock data for the 50+ roads
+  mockMapData.roads.forEach((road) => {
+    // Determine random density
+    const rand = Math.random();
+    let density: import("./types").DensityLevel = "LOW";
+    let pcu = Math.floor(Math.random() * 10) + 1;
+    let queue = 0;
+    
+    if (rand > 0.8) {
+      density = "HIGH";
+      pcu = Math.floor(Math.random() * 20) + 25; // 25-45
+      queue = Math.floor(pcu * 0.8);
+    } else if (rand > 0.5) {
+      density = "MEDIUM";
+      pcu = Math.floor(Math.random() * 15) + 10; // 10-25
+      queue = Math.floor(pcu * 0.4);
+    }
+    
+    road_states[road.id] = {
+      density,
+      pcu,
+      queue,
+      vehicles: Math.floor(pcu * 0.9),
+      last_update: Date.now() / 1000,
+      source: "mock_baseline"
+    };
+  });
+
+  return {
+    status: "success",
+    road_states,
+    summary: {
+      total_roads: mockMapData.roads.length,
+      total_junctions: mockMapData.junctions.length,
+      by_density: { LOW: 20, MEDIUM: 15, HIGH: 5 },
+      by_source: { mock_baseline: mockMapData.roads.length }
+    }
+  };
 }
 
 // Live density simulation - randomizes density levels

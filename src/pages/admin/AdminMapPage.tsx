@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useMapData } from "@/hooks/use-map-data";
+import { useMapData, useTrafficState } from "@/hooks/use-map-data";
 import { TrafficMap } from "@/components/TrafficMap";
 import { JunctionSidebar } from "@/components/JunctionSidebar";
 import { JunctionDetailModal } from "@/components/JunctionDetailModal";
@@ -10,6 +10,7 @@ import { PanelLeftClose, PanelLeft } from "lucide-react";
 
 const AdminMapPage = () => {
   const { data } = useMapData();
+  const { data: trafficStateData } = useTrafficState();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedJunction, setSelectedJunction] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,6 +74,7 @@ const AdminMapPage = () => {
             flyTo={flyTo}
             onJunctionClick={handleJunctionClick}
             turnRestrictions={data.turn_restrictions}
+            trafficStates={trafficStateData?.road_states}
           />
         )}
       </div>

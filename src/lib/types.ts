@@ -19,6 +19,8 @@ export interface Junction {
   vehicle_count?: number;
   total_pcu?: number;
   vehicle_type_distribution?: VehicleDistribution;
+  incoming_roads?: string[];
+  outgoing_roads?: string[];
 }
 
 export interface Road {
@@ -110,6 +112,36 @@ export interface SignalOptimizationResult {
   signal_wait: number;
 }
 
+// Traffic State (Phase 7)
+export interface RoadState {
+  pcu: number;
+  queue: number;
+  vehicles: number;
+  density: DensityLevel;
+  last_update: number;
+  source: string;
+}
+
+export interface TrafficStateResponse {
+  status: string;
+  road_states: Record<string, RoadState>;
+  summary: {
+    total_roads: number;
+    total_junctions: number;
+    by_density: Record<string, number>;
+    by_source: Record<string, number>;
+  };
+}
+
+export interface JunctionTrafficResponse {
+  status: string;
+  junction_id: string;
+  incoming_pcu: Record<string, number>;
+  outgoing_pcu: Record<string, number>;
+  junction_delay: number;
+  signal_plan: any;
+}
+
 // Network Status
 export interface JunctionCost {
   junction_id: string;
@@ -137,6 +169,11 @@ export interface RouteSegment {
   to_junction: string;
   road_name: string;
   cost: number;
+  traffic_delay?: number;
+  signal_delay?: number;
+  queue_delay?: number;
+  congestion_penalty?: number;
+  signal_status?: string;
 }
 
 export interface CongestedJunction {
@@ -155,6 +192,16 @@ export interface RouteResult {
   congested_junctions?: CongestedJunction[];
   color?: string;
   rank?: number;
+  signals_summary?: { green: number; red: number };
+  recommendation?: string;
+  delay_reasons?: {
+    junction_id: string;
+    junction: string;
+    delay: number;
+    signal_delay: number;
+    traffic_delay: number;
+    queue_delay: number;
+  }[];
 }
 
 export interface MultiRouteResult {

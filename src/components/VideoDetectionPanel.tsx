@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Play, Loader2, Car, Bike, Bus, Truck } from "lucide-react";
+import { Upload, Play, Loader2, Car, Bike, Bus, Truck, ChevronDown, ChevronUp } from "lucide-react";
 import { submitVideoDetection } from "@/lib/api";
-import { useMapData } from "@/hooks/use-map-data";
+import { useMapData, useTrafficState } from "@/hooks/use-map-data";
 import { DensityBadge } from "@/components/DensityBadge";
 import type { DensityLevel } from "@/lib/types";
 import { toast } from "sonner";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { TrafficMap } from "@/components/TrafficMap";
+import "./junction-label.css";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Junction camera options - Kukatpally Zone
@@ -36,6 +36,8 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
 
 interface AnalysisResult {
   junctionId: string;
+  roadId: string;
+  roadName: string;
   totalVehicles: number;
   totalPCU: number;
   vehicles: { cars: number; bikes: number; autos: number; buses: number; trucks: number; cycles: number };
@@ -80,15 +82,31 @@ function resolveCoords(junction: any): { lat: number; lng: number } | null {
 // Road colors: BLACK for major roads (50+), GREY for local roads (<50)
 const getRoadColor = (speedLimit: number) => speedLimit >= 50 ? "#1a1a1a" : "#999999";
 
+// Helper to get density dot color
+const getDensityDotColor = (density: string | undefined) => {
+  switch (density) {
+    case "HIGH": return "#ef4444";
+    case "MEDIUM": return "#f59e0b";
+    case "LOW": return "#22c55e";
+    default: return "#9ca3af";
+  }
+};
+
 export function VideoDetectionPanel() {
   const queryClient = useQueryClient();
   const { data: mapData } = useMapData();
   const [selectedJunction, setSelectedJunction] = useState("");
+  const [selectedRoad, setSelectedRoad] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [highlightedJunction, setHighlightedJunction] = useState<string | null>(null);
+  const [expandedJunction, setExpandedJunction] = useState<string | null>(null);
+  const [junctionSignals, setJunctionSignals] = useState<Record<string, any>>({});
+  const [lastFetch, setLastFetch] = useState<number>(Date.now());
+  const [now, setNow] = useState<number>(Date.now());
+
   const [statuses, setStatuses] = useState<JunctionStatus[]>(
     JUNCTION_CAMERAS.map((j) => ({
       junctionId: j.id,
@@ -100,133 +118,103 @@ export function VideoDetectionPanel() {
     }))
   );
 
+  // Poll junction_signals for live signal data (used by expanded cards)
+  useEffect(() => {
+    const poll = () => {
+      fetch("http://localhost:5000/api/junction_signals")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.junctions) {
+            setJunctionSignals(data.junctions);
+            setLastFetch(Date.now());
+          }
+        })
+        .catch(() => {});
+    };
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // 1-second tick interval for smooth countdown
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
   const mapJunctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
+  const safeJunctions = mapJunctions.filter(j => {
+    const lat = (j as any).lat ?? (j as any).latitude;
+    const lng = (j as any).lng ?? (j as any).longitude;
+    return typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng);
+  });
+  const mapRoads = Array.isArray(mapData?.roads) ? mapData.roads : [];
+  const { data: trafficStateData } = useTrafficState();
   const cameraOptions =
     mapJunctions.length > 0
       ? mapJunctions.map((j) => ({ id: j.id, name: j.name }))
       : JUNCTION_CAMERAS;
 
-  // Keep status cards synchronized with persisted backend metrics.
+  // Get incoming roads for selected junction — use junction's incoming_roads field,
+  // NOT all roads with to_junction match (which includes removed/overlapping roads)
+  const incomingRoads = selectedJunction
+    ? (() => {
+        const junction = mapJunctions.find((j: any) => j.id === selectedJunction);
+        const incomingIds: string[] = (junction as any)?.incoming_roads || [];
+        return incomingIds
+          .map((rId: string) => {
+            const road = mapRoads.find((r: any) => r.id === rId);
+            return road
+              ? { id: road.id, name: road.name || `${road.from_junction} → ${road.to_junction}`, from: road.from_junction }
+              : null;
+          })
+          .filter(Boolean) as { id: string; name: string; from: string }[];
+      })()
+    : [];
+
+  // Reset road when junction changes
+  const handleJunctionChange = (jId: string) => {
+    setSelectedJunction(jId);
+    setSelectedRoad("");
+  };
+
+  // Keep status cards synchronized with live signal + map data.
+  // junctionSignals is the primary source of truth (polled every 3s);
+  // mapData is a fallback for fields like lastAnalyzed.
   useEffect(() => {
     const liveJunctions = Array.isArray(mapData?.junctions) ? mapData.junctions : [];
-    if (liveJunctions.length === 0) return;
 
     setStatuses(
       JUNCTION_CAMERAS.map((camera) => {
         const live = liveJunctions.find((j) => j.id === camera.id);
+        const sig = junctionSignals[camera.id];
         const liveUpdatedAt = (live as any)?.live_updated_at;
         const lastAnalyzed =
           typeof liveUpdatedAt === "number" && Number.isFinite(liveUpdatedAt)
             ? new Date(liveUpdatedAt * 1000).toISOString()
             : null;
 
+        // Sum vehicles from signal roads for accurate count
+        const sigRoads = sig?.roads || {};
+        const sigVehicles = Object.values(sigRoads).reduce(
+          (sum: number, rd: any) => sum + (rd?.vehicles ?? 0), 0
+        ) as number;
+
         return {
           junctionId: camera.id,
           name: camera.name,
           lastAnalyzed,
-          density: live?.density ?? null,
-          vehicleCount: live?.vehicle_count ?? 0,
-          pcu: live?.total_pcu ?? 0,
+          // Signal API density is most up-to-date; fallback to mapData
+          density: (sig?.density_level as DensityLevel) ?? live?.density ?? null,
+          vehicleCount: sigVehicles || (live?.vehicle_count ?? 0),
+          pcu: sig?.total_pcu ?? live?.total_pcu ?? 0,
         };
       })
     );
-  }, [mapData]);
+  }, [mapData, junctionSignals]);
 
-  // Map refs
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const layersRef = useRef<L.LayerGroup | null>(null);
-
-  // Timer for elapsed
-  useEffect(() => {
-    if (!loading) return;
-    setElapsed(0);
-    const start = Date.now();
-    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
-    return () => clearInterval(interval);
-  }, [loading]);
-
-  // Init map - Kukatpally center
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    const map = L.map(mapContainerRef.current, {
-      center: [17.49, 78.38],
-      zoom: 14,
-      zoomControl: false,
-    });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    mapRef.current = map;
-    layersRef.current = L.layerGroup().addTo(map);
-    return () => { map.remove(); mapRef.current = null; layersRef.current = null; };
-  }, []);
-
-  // Update map markers + roads
-  useEffect(() => {
-    const layers = layersRef.current;
-    if (!layers) return;
-    layers.clearLayers();
-
-    // Draw roads first (under markers)
-    const safeRoads = Array.isArray(mapData?.roads) ? mapData!.roads : [];
-    const junctionCoordMap = new Map<string, { lat: number; lng: number }>();
-    (Array.isArray(mapData?.junctions) ? mapData!.junctions : []).forEach((j: any) => {
-      const c = resolveCoords(j);
-      if (c) junctionCoordMap.set(j.id, c);
-    });
-    safeRoads.forEach((road: any) => {
-      const from = junctionCoordMap.get(road.from_junction);
-      const to = junctionCoordMap.get(road.to_junction);
-      if (!from || !to) return;
-      const line = L.polyline(
-        [[from.lat, from.lng], [to.lat, to.lng]],
-        { color: getRoadColor(road.speed_limit), weight: 1.5 + (road.lanes ?? 1) * 0.75, opacity: 0.7 }
-      );
-      line.bindPopup(`<strong>${road.name}</strong><br/>${road.from_junction} → ${road.to_junction}<br/>Speed: ${road.speed_limit} km/h | Lanes: ${road.lanes}`);
-      layers.addLayer(line);
-    });
-
-    const junctionsForMap = mapJunctions.length > 0 ? mapJunctions : JUNCTION_CAMERAS.map((camera) => {
-      const fallback = {
-        J1: { lat: 17.4947, lng: 78.3872 },
-        J2: { lat: 17.4935, lng: 78.3920 },
-        J3: { lat: 17.4898, lng: 78.3905 },
-        J4: { lat: 17.4962, lng: 78.3838 },
-        J5: { lat: 17.4855, lng: 78.3830 },
-        J6: { lat: 17.4978, lng: 78.3898 },
-        J7: { lat: 17.4885, lng: 78.3785 },
-        J8: { lat: 17.5018, lng: 78.3868 },
-        J9: { lat: 17.4990, lng: 78.3935 },
-        J10: { lat: 17.5042, lng: 78.3832 },
-      } as Record<string, { lat: number; lng: number }>;
-      const coords = fallback[camera.id] || { lat: 17.49, lng: 78.38 };
-      return { ...camera, ...coords };
-    });
-
-    junctionsForMap.forEach((j) => {
-      const coords = resolveCoords(j);
-      if (!coords) return;
-
-      const status = statuses.find((s) => s.junctionId === j.id);
-      const density = status?.density;
-      const color = density ? DENSITY_COLORS[density] : "#CCCCCC";
-      const isHighlighted = highlightedJunction === j.id;
-
-      const marker = L.circleMarker([coords.lat, coords.lng], {
-        radius: isHighlighted ? 18 : 12,
-        fillColor: color,
-        fillOpacity: isHighlighted ? 1 : 0.85,
-        color: isHighlighted ? "#fff" : "#374151",
-        weight: isHighlighted ? 3 : 1.5,
-      });
-      marker.bindPopup(
-        `<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${density || "Pending"}</div>`
-      );
-      layers.addLayer(marker);
-    });
-  }, [statuses, highlightedJunction, mapJunctions, mapData]);
+  // No longer initialize L.map manually for VideoDetectionPanel.
+  // The map features are now unified directly within the reusable TrafficMap component.
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -239,15 +227,15 @@ export function VideoDetectionPanel() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!file || !selectedJunction) {
-      toast.error("Please select a junction and upload a video file.");
+    if (!file || !selectedJunction || !selectedRoad) {
+      toast.error("Please select a junction, road, and upload a video file.");
       return;
     }
     setLoading(true);
     setResult(null);
 
     try {
-      const res = await submitVideoDetection(selectedJunction, file, 10);
+      const res = await submitVideoDetection(selectedJunction, file, 10, selectedRoad);
 
       // Use road_density_analysis as the ONLY authoritative source for headline metrics.
       // Do NOT sum detections_per_frame — that inflates counts (per-frame != unique vehicles).
@@ -269,6 +257,8 @@ export function VideoDetectionPanel() {
 
       const analysisResult: AnalysisResult = {
         junctionId: selectedJunction,
+        roadId: selectedRoad,
+        roadName: incomingRoads.find((r) => r.id === selectedRoad)?.name || selectedRoad,
         totalVehicles,
         totalPCU,
         vehicles,
@@ -295,27 +285,27 @@ export function VideoDetectionPanel() {
           junctions: current.junctions.map((j: any) =>
             j.id === selectedJunction
               ? {
-                  ...j,
-                  density,
-                  vehicle_count: totalVehicles,
-                  total_pcu: totalPCU,
-                  vehicle_type_distribution: {
-                    car: vehicles.cars,
-                    bike: vehicles.bikes,
-                    auto: vehicles.autos,
-                    bus: vehicles.buses,
-                    truck: vehicles.trucks,
-                    cycle: vehicles.cycles,
-                  },
-                  live_updated_at: Date.now() / 1000,
-                }
+                ...j,
+                density,
+                vehicle_count: totalVehicles,
+                total_pcu: totalPCU,
+                vehicle_type_distribution: {
+                  car: vehicles.cars,
+                  bike: vehicles.bikes,
+                  auto: vehicles.autos,
+                  bus: vehicles.buses,
+                  truck: vehicles.trucks,
+                  cycle: vehicles.cycles,
+                },
+                live_updated_at: Date.now() / 1000,
+              }
               : j
           ),
         };
       });
 
       await queryClient.refetchQueries({ queryKey: ["map-data"], exact: true });
-      toast.success(`Analysis complete for ${JUNCTION_CAMERAS.find((j) => j.id === selectedJunction)?.name}`);
+      toast.success(`Analysis complete for road ${selectedRoad} at ${JUNCTION_CAMERAS.find((j) => j.id === selectedJunction)?.name}`);
     } catch {
       // Mock fallback — uses local PCU calculation only when backend is unavailable
       const mockVehicles = {
@@ -331,6 +321,8 @@ export function VideoDetectionPanel() {
       const density = classifyDensity(totalPCU);
       const mockResult: AnalysisResult = {
         junctionId: selectedJunction,
+        roadId: selectedRoad,
+        roadName: incomingRoads.find((r) => r.id === selectedRoad)?.name || selectedRoad,
         totalVehicles,
         totalPCU,
         vehicles: mockVehicles,
@@ -349,11 +341,11 @@ export function VideoDetectionPanel() {
             : s
         )
       );
-      toast.success(`Analysis complete (mock) for ${JUNCTION_CAMERAS.find((j) => j.id === selectedJunction)?.name}`);
+      toast.success(`Analysis complete (mock) for road ${selectedRoad}`);
     } finally {
       setLoading(false);
     }
-  }, [file, selectedJunction, elapsed, queryClient]);
+  }, [file, selectedJunction, selectedRoad, elapsed, queryClient, incomingRoads]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -370,8 +362,8 @@ export function VideoDetectionPanel() {
 
           {/* Junction Select */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Junction Camera</Label>
-            <Select value={selectedJunction} onValueChange={setSelectedJunction}>
+            <Label className="text-xs font-medium">Junction</Label>
+            <Select value={selectedJunction} onValueChange={handleJunctionChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select junction..." />
               </SelectTrigger>
@@ -384,6 +376,25 @@ export function VideoDetectionPanel() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Road Select (filtered by junction) */}
+          {selectedJunction && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Incoming Road</Label>
+              <Select value={selectedRoad} onValueChange={setSelectedRoad}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select road..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {incomingRoads.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.id} — {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* File Upload */}
           <div className="space-y-1.5">
@@ -413,7 +424,7 @@ export function VideoDetectionPanel() {
           </div>
 
           {/* Submit */}
-          <Button onClick={handleSubmit} disabled={loading || !file || !selectedJunction} className="w-full">
+          <Button onClick={handleSubmit} disabled={loading || !file || !selectedJunction || !selectedRoad} className="w-full">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -432,7 +443,7 @@ export function VideoDetectionPanel() {
             <Card className="border-primary/20">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between text-sm">
-                  <span>Results: {JUNCTION_CAMERAS.find((j) => j.id === result.junctionId)?.name}</span>
+                  <span>Road: {result.roadId} ({result.roadName})</span>
                   <DensityBadge level={result.density} />
                 </CardTitle>
               </CardHeader>
@@ -470,34 +481,153 @@ export function VideoDetectionPanel() {
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-foreground">Junction Analysis Status</h3>
             <div className="grid grid-cols-2 gap-2">
-              {statuses.map((s) => (
-                <div
-                  key={s.junctionId}
-                  className="rounded-md border border-border bg-muted/40 p-2 text-[11px]"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">{s.name}</span>
-                    {s.density ? <DensityBadge level={s.density} /> : <Badge variant="outline" className="text-[10px] px-1.5 py-0">Pending</Badge>}
+              {statuses.map((s) => {
+                const isExpanded = expandedJunction === s.junctionId;
+                const sig = junctionSignals[s.junctionId];
+                const activeGreen = sig?.active_green_road || "";
+                const timeRemaining = Math.max(0, (sig?.time_remaining ?? 0) - Math.floor((now - lastFetch) / 1000));
+                const greenDuration = sig?.green_duration ?? 0;
+                const roadsData = sig?.roads || {};
+                const junction = mapJunctions.find((j: any) => j.id === s.junctionId);
+                const incomingIds: string[] = (junction as any)?.incoming_roads || [];
+                const activeRoadObj = mapRoads.find((r: any) => r.id === activeGreen);
+                const activeRoadName = activeRoadObj?.name || activeGreen || "—";
+
+                return (
+                  <div
+                    key={s.junctionId}
+                    className={`rounded-lg border transition-all duration-200 cursor-pointer text-[11px] ${
+                      isExpanded
+                        ? "col-span-2 border-primary/40 bg-card shadow-md"
+                        : "border-border bg-muted/40 hover:border-primary/20 hover:bg-muted/60"
+                    }`}
+                    onClick={() => setExpandedJunction(isExpanded ? null : s.junctionId)}
+                  >
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between p-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-foreground">{s.name}</span>
+                        {s.density ? <DensityBadge level={s.density} /> : <Badge variant="outline" className="text-[10px] px-1.5 py-0">Pending</Badge>}
+                      </div>
+                      {isExpanded
+                        ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                        : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      }
+                    </div>
+                    <div className="px-2 pb-1">
+                      <p className="text-muted-foreground">
+                        {s.lastAnalyzed
+                          ? `Analyzed: ${new Date(s.lastAnalyzed).toLocaleTimeString()}`
+                          : "Not analyzed"}
+                      </p>
+                      {s.lastAnalyzed && (
+                        <p className="text-muted-foreground">
+                          {s.vehicleCount} vehicles · {s.pcu} PCU
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Expanded Section */}
+                    {isExpanded && sig && (
+                      <div
+                        className="border-t border-border px-3 py-2.5 space-y-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Active Signal Info */}
+                        <div className="flex items-center justify-between rounded-md px-2.5 py-2" style={{ background: "rgba(34,197,94,0.08)" }}>
+                          <div>
+                            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#16a34a" }}>🚦 Active Signal</div>
+                            <div className="text-[11px] mt-0.5">🟢 <strong>{activeRoadName}</strong> — {greenDuration}s green</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold tabular-nums" style={{ color: timeRemaining > 5 ? "#16a34a" : "#ef4444" }}>{timeRemaining}s</div>
+                            <div className="text-[10px] text-muted-foreground">remaining</div>
+                          </div>
+                        </div>
+
+                        {/* Incoming Roads Table */}
+                        <div>
+                          <div className="text-[10px] font-semibold text-muted-foreground mb-1">INCOMING ROADS</div>
+                          <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr style={{ background: "hsl(var(--muted))" }}>
+                                <th className="text-left px-1.5 py-1 font-medium">⚡</th>
+                                <th className="text-left px-1.5 py-1 font-medium">ID</th>
+                                <th className="text-left px-1.5 py-1 font-medium">Name</th>
+                                <th className="text-right px-1.5 py-1 font-medium">PCU</th>
+                                <th className="text-right px-1.5 py-1 font-medium">Vehs</th>
+                                <th className="text-right px-1.5 py-1 font-medium">Wait</th>
+                                <th className="text-center px-1.5 py-1 font-medium">Dens</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {incomingIds.map((rId) => {
+                                const rd = roadsData[rId];
+                                const roadObj = mapRoads.find((r: any) => r.id === rId);
+                                const isGreen = rd?.signal === "GREEN";
+                                return (
+                                  <tr
+                                    key={rId}
+                                    style={{
+                                      background: isGreen ? "rgba(34,197,94,0.1)" : "transparent",
+                                      opacity: isGreen ? 1 : 0.75,
+                                    }}
+                                  >
+                                    <td className="px-1.5 py-1">{isGreen ? "🟢" : "🔴"}</td>
+                                    <td className="px-1.5 py-1 font-mono">{rId}</td>
+                                    <td className="px-1.5 py-1 max-w-[120px] truncate">{roadObj?.name || "—"}</td>
+                                    <td className="px-1.5 py-1 text-right tabular-nums">{rd?.pcu ?? "—"}</td>
+                                    <td className="px-1.5 py-1 text-right tabular-nums">{rd?.vehicles ?? "—"}</td>
+                                    <td className="px-1.5 py-1 text-right tabular-nums" style={{ color: !isGreen && (rd?.wait_time ?? 0) > 0 ? "#ef4444" : undefined }}>
+                                      {!isGreen && (rd?.wait_time ?? 0) > 0 ? `${rd.wait_time}s` : "—"}
+                                    </td>
+                                    <td className="px-1.5 py-1 text-center">
+                                      <span
+                                        style={{
+                                          display: "inline-block",
+                                          width: 8,
+                                          height: 8,
+                                          borderRadius: "50%",
+                                          background: getDensityDotColor(rd?.density),
+                                          border: "1px solid rgba(255,255,255,0.3)",
+                                        }}
+                                      />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {incomingIds.length === 0 && (
+                                <tr><td colSpan={7} className="px-1.5 py-2 text-center text-muted-foreground">No incoming roads</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Insight */}
+                        {activeGreen && (
+                          <p className="text-[10px] text-muted-foreground italic">
+                            💡 {activeRoadName} has the highest pressure score → selected for GREEN
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <p className="mt-0.5 text-muted-foreground">
-                    {s.lastAnalyzed
-                      ? `Analyzed: ${new Date(s.lastAnalyzed).toLocaleTimeString()}`
-                      : "Not analyzed"}
-                  </p>
-                  {s.lastAnalyzed && (
-                    <p className="text-muted-foreground">
-                      {s.vehicleCount} vehicles · {s.pcu} PCU
-                    </p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
 
         {/* Right: Map */}
-        <div className="flex-1">
-          <div ref={mapContainerRef} className="h-full w-full" />
+        <div className="flex-1 overflow-hidden relative" style={{ isolation: "isolate" }}>
+          <TrafficMap
+            junctions={Array.isArray(mapData?.junctions) ? mapData.junctions : []}
+            roads={Array.isArray(mapData?.roads) ? mapData.roads : []}
+            roadStates={trafficStateData?.road_states || {}}
+            flyTo={null}
+            onJunctionClick={useCallback(() => {}, [])}
+            highlightJunctionId={highlightedJunction || undefined}
+          />
         </div>
       </div>
     </div>

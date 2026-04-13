@@ -21,7 +21,7 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4">
+    <header className="relative z-50 flex h-12 items-center justify-between border-b border-border bg-background px-4">
       <div className="flex items-center gap-6">
         <span className="text-sm font-bold tracking-tight text-foreground">
           🚦 AI Traffic <span className="ml-1 rounded bg-accent/15 px-1.5 py-0.5 text-xs font-semibold text-accent">Admin</span>

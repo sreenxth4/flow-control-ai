@@ -23,7 +23,7 @@ export function JunctionSidebar({ junctions, signalPhases, onJunctionClick, onJu
                 onJunctionFly(j.lat, j.lng);
                 onJunctionClick(j.id);
               }}
-              className="w-full rounded-lg border border-border/50 bg-card p-3 text-left transition-colors hover:bg-accent/50"
+              className="w-full rounded-xl border p-3 text-left transition-all duration-300 border-border bg-card hover:border-primary/50 hover:bg-muted/50 hover:shadow-sm hover:-translate-y-1 outline-none select-none"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

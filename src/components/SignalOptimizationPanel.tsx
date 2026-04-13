@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Settings2, Zap, Clock, TrendingDown } from "lucide-react";
 import { DensityBadge } from "@/components/DensityBadge";
-import { useMapData, useOptimizeSignals } from "@/hooks/use-map-data";
+import { useMapData, useOptimizeSignals, useTrafficState } from "@/hooks/use-map-data";
 import type { LaneAnalysis, SignalOptimizationResult, DensityLevel } from "@/lib/types";
 import { toast } from "sonner";
 
 export function SignalOptimizationPanel() {
   const { data: mapData } = useMapData();
+  const { data: trafficStateData } = useTrafficState();
   const optimizeMutation = useOptimizeSignals();
   
   const [selectedJunction, setSelectedJunction] = useState<string>("");
@@ -22,6 +23,23 @@ export function SignalOptimizationPanel() {
     { approach: "West", vehicle_count: 28, density: "LOW" },
   ]);
   const [result, setResult] = useState<SignalOptimizationResult | null>(null);
+
+  // Auto-populate from TrafficState when junction selected
+  useEffect(() => {
+    if (selectedJunction && mapData && trafficStateData?.road_states) {
+      const incoming = (mapData.roads || []).filter(r => r.to_junction === selectedJunction);
+      if (incoming.length > 0) {
+        setLaneAnalysis(incoming.map(road => {
+          const state = trafficStateData.road_states[road.id];
+          return {
+            approach: road.name || road.id,
+            vehicle_count: state?.vehicles || 0,
+            density: state?.density || "LOW"
+          };
+        }));
+      }
+    }
+  }, [selectedJunction, mapData, trafficStateData]);
 
   const updateLaneCount = useCallback((idx: number, count: number) => {
     setLaneAnalysis((prev) => {
@@ -63,7 +81,7 @@ export function SignalOptimizationPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Configuration */}
-        <Card>
+        <Card className="transition-all duration-300 hover:shadow-md hover:border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-primary" />
@@ -118,7 +136,7 @@ export function SignalOptimizationPanel() {
         </Card>
 
         {/* Results */}
-        <Card>
+        <Card className="transition-all duration-300 hover:shadow-md hover:border-primary/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingDown className="h-5 w-5 text-traffic-low" />
@@ -160,12 +178,12 @@ export function SignalOptimizationPanel() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg bg-muted p-3 text-center">
+                  <div className="rounded-xl bg-muted p-3 text-center transition-all duration-300 hover:bg-muted/80 hover:shadow-sm hover:-translate-y-0.5">
                     <Clock className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
                     <p className="text-xs text-muted-foreground">Traffic Delay</p>
                     <p className="text-lg font-bold text-foreground">{result.traffic_delay}s</p>
                   </div>
-                  <div className="rounded-lg bg-muted p-3 text-center">
+                  <div className="rounded-xl bg-muted p-3 text-center transition-all duration-300 hover:bg-muted/80 hover:shadow-sm hover:-translate-y-0.5">
                     <Clock className="mx-auto mb-1 h-4 w-4 text-muted-foreground" />
                     <p className="text-xs text-muted-foreground">Signal Wait</p>
                     <p className="text-lg font-bold text-foreground">{result.signal_wait}s</p>

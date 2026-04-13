@@ -1,5 +1,5 @@
-import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealth, getMockNetworkStatus, getMockRoute, getMockMultipleRoutes } from "./mock-data";
-import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus, SignalOptimizationRequest, SignalOptimizationResult, NetworkStatus, RouteRequest, RouteResult, MultiRouteResult } from "./types";
+import { getMockMapData, getMockJunctionDetail, getMockPerformance, getMockHealth, getMockNetworkStatus, getMockRoute, getMockMultipleRoutes, getMockTrafficState } from "./mock-data";
+import type { MapData, JunctionDetail, DetectionResult, PerformanceData, HealthStatus, SignalOptimizationRequest, SignalOptimizationResult, NetworkStatus, RouteRequest, RouteResult, MultiRouteResult, TrafficStateResponse, JunctionTrafficResponse } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
 let performanceEndpoint: "/api/v1/performance/latest" | "/api/v1/metrics" = "/api/v1/metrics";
@@ -102,12 +102,14 @@ export async function fetchHealth(): Promise<HealthStatus> {
 export async function submitVideoDetection(
   sourceId: string,
   videoFile: File,
-  targetFps: number
+  targetFps: number,
+  roadId?: string
 ): Promise<DetectionResult> {
   const formData = new FormData();
   formData.append("source_id", sourceId);
   formData.append("video_file", videoFile);
   formData.append("target_fps", String(targetFps));
+  if (roadId) formData.append("road_id", roadId);
 
   return apiFetch<DetectionResult>("/api/v1/detect/video", {
     method: "POST",
@@ -146,6 +148,19 @@ export async function fetchNetworkStatus(): Promise<NetworkStatus> {
   } catch {
     return getMockNetworkStatus();
   }
+}
+
+// Traffic State
+export async function fetchTrafficState(): Promise<TrafficStateResponse> {
+  try {
+    return await apiFetch<TrafficStateResponse>("/api/traffic_state");
+  } catch {
+    return getMockTrafficState();
+  }
+}
+
+export async function fetchJunctionTraffic(id: string): Promise<JunctionTrafficResponse> {
+  return await apiFetch<JunctionTrafficResponse>(`/api/junction_traffic/${id}`);
 }
 
 // Route Finding

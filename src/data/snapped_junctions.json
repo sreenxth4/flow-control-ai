@@ -1,0 +1,112 @@
+{
+  "J1": {
+    "original": {
+      "lat": 17.4947,
+      "lng": 78.3872
+    },
+    "snapped": {
+      "lat": 17.494697,
+      "lng": 78.387214
+    },
+    "distance_m": 2
+  },
+  "J2": {
+    "original": {
+      "lat": 17.4935,
+      "lng": 78.392
+    },
+    "snapped": {
+      "lat": 17.492898,
+      "lng": 78.393557
+    },
+    "distance_m": 178
+  },
+  "J3": {
+    "original": {
+      "lat": 17.4898,
+      "lng": 78.3905
+    },
+    "snapped": {
+      "lat": 17.489268,
+      "lng": 78.390403
+    },
+    "distance_m": 60
+  },
+  "J4": {
+    "original": {
+      "lat": 17.4962,
+      "lng": 78.3838
+    },
+    "snapped": {
+      "lat": 17.496218,
+      "lng": 78.383803
+    },
+    "distance_m": 2
+  },
+  "J5": {
+    "original": {
+      "lat": 17.4855,
+      "lng": 78.383
+    },
+    "snapped": {
+      "lat": 17.485515,
+      "lng": 78.382999
+    },
+    "distance_m": 2
+  },
+  "J6": {
+    "original": {
+      "lat": 17.4978,
+      "lng": 78.3898
+    },
+    "snapped": {
+      "lat": 17.497801,
+      "lng": 78.3898
+    },
+    "distance_m": 0
+  },
+  "J7": {
+    "original": {
+      "lat": 17.4885,
+      "lng": 78.3785
+    },
+    "snapped": {
+      "lat": 17.488421,
+      "lng": 78.37846
+    },
+    "distance_m": 10
+  },
+  "J8": {
+    "original": {
+      "lat": 17.5018,
+      "lng": 78.3868
+    },
+    "snapped": {
+      "lat": 17.501786,
+      "lng": 78.386886
+    },
+    "distance_m": 9
+  },
+  "J9": {
+    "original": {
+      "lat": 17.499,
+      "lng": 78.3935
+    },
+    "snapped": {
+      "lat": 17.498791,
+      "lng": 78.393439
+    },
+    "distance_m": 24
+  },
+  "J10": {
+    "original": {
+      "lat": 17.5042,
+      "lng": 78.3832
+    },
+    "snapped": {
+      "lat": 17.504242,
+      "lng": 78.383214
+    },
+    "distance_m": 5
+  }
+}

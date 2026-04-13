@@ -1,0 +1,1 @@
+const fromLng=78.3785, fromLat=17.4885, toLng=78.3832, toLat=17.5042; fetch(\https://router.project-osrm.org/route/v1/driving/\,\;\,\?overview=full&geometries=geojson\).then(r=>r.json()).then(console.log).catch(console.error);

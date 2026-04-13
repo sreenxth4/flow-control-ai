@@ -1,18 +1,19 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useMapData, useFindMultipleRoutes } from "@/hooks/use-map-data";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useMapData, useFindMultipleRoutes, useTrafficState } from "@/hooks/use-map-data";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, Route, X, ArrowRight, Loader2, AlertTriangle, Clock } from "lucide-react";
+import {
+  MapPin, Route, X, ArrowRight, Loader2, AlertTriangle, Clock,
+  RefreshCw, Zap, Lightbulb,
+} from "lucide-react";
 import type { RouteResult, DensityLevel, MultiRouteResult } from "@/lib/types";
 import { toast } from "sonner";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { TrafficMap } from "@/components/TrafficMap";
 
 // Density colors
 const DENSITY_COLORS: Record<DensityLevel, string> = {
@@ -21,34 +22,30 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   HIGH: "#ef4444",
 };
 
-// Marker size by vehicle count
-const getMarkerSize = (vehicleCount?: number) => Math.min(35, 12 + (vehicleCount || 0) * 0.8);
-
-const resolveCoords = (junction: any): { lat: number; lng: number } | null => {
-  const lat = junction?.lat ?? junction?.latitude;
-  const lng = junction?.lng ?? junction?.longitude;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { lat: Number(lat), lng: Number(lng) };
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 };
 
-// Route colors: Green=fastest, Amber=alternate, Blue=longer
-// Route colors assigned by total travel time: green=fastest, skyblue=middle, red=slowest
+// Route colors assigned by total travel time
 const getRouteColorByRank = (routes: { total_cost: number; congestion_delay?: number }[]) => {
   if (routes.length <= 1) return ["#22c55e"];
   const totalTimes = routes.map((r, i) => ({ i, time: r.total_cost + (r.congestion_delay || 0) }));
   totalTimes.sort((a, b) => a.time - b.time);
   const colorMap: Record<number, string> = {};
-  colorMap[totalTimes[0].i] = "#22c55e"; // green = fastest
+  colorMap[totalTimes[0].i] = "#22c55e";
   if (totalTimes.length === 2) {
     colorMap[totalTimes[1].i] = "#ef4444";
   } else {
-    colorMap[totalTimes[totalTimes.length - 1].i] = "#ef4444"; // red = slowest
+    colorMap[totalTimes[totalTimes.length - 1].i] = "#ef4444";
     for (let k = 1; k < totalTimes.length - 1; k++) {
-      colorMap[totalTimes[k].i] = "#87CEEB"; // skyblue = middle
+      colorMap[totalTimes[k].i] = "#87CEEB";
     }
   }
   return routes.map((_, i) => colorMap[i]);
 };
+
 const getRouteLabelByRank = (routes: { total_cost: number; congestion_delay?: number }[]) => {
   if (routes.length <= 1) return ["Fastest"];
   const totalTimes = routes.map((r, i) => ({ i, time: r.total_cost + (r.congestion_delay || 0) }));
@@ -68,6 +65,7 @@ const getRouteLabelByRank = (routes: { total_cost: number; congestion_delay?: nu
 
 const UserRoutePage = () => {
   const { data } = useMapData();
+  const { data: trafficStateData } = useTrafficState();
   const queryClient = useQueryClient();
   const findRoutesMutation = useFindMultipleRoutes();
 
@@ -75,200 +73,34 @@ const UserRoutePage = () => {
   const [destination, setDestination] = useState<string>("");
   const [routeResult, setRouteResult] = useState<MultiRouteResult | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
-  const [mapReady, setMapReady] = useState(false);
+  const [routeLocked, setRouteLocked] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const [secondsAgo, setSecondsAgo] = useState(0);
 
-  const junctions = Array.isArray(data?.junctions) ? data.junctions : [];
+  // Hybrid smart rerouting state
+  const originalLockedCostRef = useRef<number>(0);
+  const [liveCost, setLiveCost] = useState<number | null>(null);
+  const [rerouteSuggestion, setRerouteSuggestion] = useState<{
+    saving: number;
+    newResult: MultiRouteResult;
+    bestIndex: number;
+  } | null>(null);
+
+  const junctions = useMemo(() => Array.isArray(data?.junctions) ? data.junctions : [], [data?.junctions]);
+  const safeJunctions = useMemo(() =>
+    junctions.filter(j => {
+      const lat = j.lat ?? (j as any).latitude;
+      const lng = j.lng ?? (j as any).longitude;
+      return typeof lat === "number" && typeof lng === "number" && !isNaN(lat) && !isNaN(lng);
+    }),
+    [junctions]
+  );
+  const roads = useMemo(() => Array.isArray(data?.roads) ? data.roads : [], [data?.roads]);
+
   const getJunctionName = useCallback(
     (id: string) => junctions.find((j) => j.id === id)?.name || id,
     [junctions]
   );
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const layersRef = useRef<L.LayerGroup | null>(null);
-
-  // Refetch map data every 90s for near-real-time density/vehicle updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["map-data"] });
-    }, 90_000);
-    return () => clearInterval(interval);
-  }, [queryClient]);
-
-  // Init map - Kukatpally center
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, {
-      center: [17.49, 78.38],
-      zoom: 14,
-      zoomControl: false,
-    });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    mapRef.current = map;
-    layersRef.current = L.layerGroup().addTo(map);
-    setMapReady(true);
-    return () => { map.remove(); mapRef.current = null; layersRef.current = null; setMapReady(false); };
-  }, []);
-
-  // Update map
-  useEffect(() => {
-    const layers = layersRef.current;
-    if (!layers || !data || !mapReady) return;
-    layers.clearLayers();
-
-    const safeJunctions = Array.isArray(data.junctions) ? data.junctions : [];
-    const safeRoads = Array.isArray(data.roads) ? data.roads : [];
-
-    const junctionMap = new Map(
-      safeJunctions
-        .map((j) => {
-          const coords = resolveCoords(j);
-          if (!coords) return null;
-          return [j.id, { ...j, lat: coords.lat, lng: coords.lng }] as const;
-        })
-        .filter((entry): entry is readonly [string, (typeof safeJunctions)[number] & { lat: number; lng: number }] => entry !== null)
-    );
-    const routes = routeResult?.routes || [];
-    const selectedRoute = routes[selectedRouteIndex];
-    const routeColors = getRouteColorByRank(routes);
-    
-    // Build route road sets for each route
-    const routeRoadSets = routes.map((route, idx) => {
-      const set = new Set<string>();
-      if (route.success && route.path.length > 1) {
-        for (let i = 0; i < route.path.length - 1; i++) {
-          set.add(`${route.path[i]}-${route.path[i + 1]}`);
-          set.add(`${route.path[i + 1]}-${route.path[i]}`);
-        }
-      }
-      const isSelected = idx === selectedRouteIndex;
-      return { set, color: routeColors[idx], isSelected };
-    });
-
-    const hasRoutes = routes.length > 0;
-
-    // Roads
-    safeRoads.forEach((road) => {
-      const from = junctionMap.get(road.from_junction);
-      const to = junctionMap.get(road.to_junction);
-      if (!from || !to) return;
-
-      // Validate lat/lng values for road polyline
-      const latlngs = [[from.lat, from.lng], [to.lat, to.lng]];
-      if (
-        latlngs.some(
-          ([lat, lng]) =>
-            typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng)
-        )
-      ) {
-        // eslint-disable-next-line no-console
-        console.warn(`Invalid lat/lng for road ${road.id}:`, latlngs);
-        return;
-      }
-
-      // Only show the selected route on the map
-      const matchingRoute = routeRoadSets.find(r => r.isSelected && r.set.has(`${road.from_junction}-${road.to_junction}`));
-
-      let lineColor: string;
-      let lineWeight: number;
-      let lineOpacity: number;
-
-      if (matchingRoute) {
-        lineColor = matchingRoute.color;
-        lineWeight = 8;
-        lineOpacity = 1;
-      } else if (hasRoutes) {
-        // Dim all non-route roads when routes are displayed
-        lineColor = "#6b7280";
-        lineWeight = 1;
-        lineOpacity = 0.15;
-      } else {
-        // Default: BLACK major roads (50+), GREY local roads (40)
-        lineColor = road.speed_limit >= 50 ? "#1a1a1a" : "#999999";
-        lineWeight = 1.5 + road.lanes * 0.5;
-        lineOpacity = 0.55;
-      }
-
-      const line = L.polyline(latlngs, {
-        color: lineColor,
-        weight: lineWeight,
-        opacity: lineOpacity,
-      });
-
-      const lengthM = (road.length_km * 1000).toFixed(0);
-      const baseCost = ((road.length_km / road.speed_limit) * 3600).toFixed(1);
-      line.bindTooltip(
-        `<div style="min-width:140px; font-size: 12px;">
-          <strong>${road.name}</strong><br/>
-          <span style="color:#666">${road.from_junction} → ${road.to_junction}</span><br/>
-          📏 ${lengthM}m | 🚗 ${road.speed_limit} km/h<br/>
-          🛣️ ${road.lanes} lanes | ⏱️ ${baseCost}s
-        </div>`,
-        { sticky: true, direction: "top" }
-      );
-
-      layers.addLayer(line);
-    });
-
-    // All route paths for junction highlighting
-    const allRoutePaths = new Set<string>();
-    routes.forEach(r => r.path?.forEach(p => allRoutePaths.add(p)));
-
-    // Junctions
-    safeJunctions.forEach((j) => {
-      const isSource = source === j.id;
-      const isDest = destination === j.id;
-      const isOnRoute = allRoutePaths.has(j.id);
-
-      const coords = resolveCoords(j);
-
-      // Validate lat/lng values for junction marker
-      if (!coords) {
-        // eslint-disable-next-line no-console
-        console.warn(`Invalid lat/lng for junction ${j.id}`);
-        return;
-      }
-
-      const currentDensity = j.density;
-      const color = isSource
-        ? "#3b82f6"
-        : isDest
-          ? "#ef4444"
-          : currentDensity
-            ? DENSITY_COLORS[currentDensity]
-            : "#CCCCCC";
-      const radius = isSource || isDest ? 11 : isOnRoute ? 9 : Math.max(7, getMarkerSize(j.vehicle_count));
-      const weight = isSource || isDest ? 3 : isOnRoute ? 3 : 2;
-
-      const marker = L.circleMarker([coords.lat, coords.lng], {
-        radius,
-        fillColor: color,
-        fillOpacity: 0.95,
-        color: isOnRoute ? "#FFD700" : "#ffffff",
-        weight,
-      });
-      const pcuInfo = j.vehicle_count != null && j.total_pcu != null ? `<br/>${j.vehicle_count} vehicles (${j.total_pcu} PCU)` : "";
-      marker.bindPopup(`<div style="min-width:140px"><strong>${j.id}: ${j.name}</strong><br/>Density: ${currentDensity || "N/A"}${pcuInfo}</div>`);
-      layers.addLayer(marker);
-
-      const labelText = (j.name || j.id || "").trim() || j.id;
-      const labelWidth = Math.min(240, Math.max(64, labelText.length * 7));
-      const labelIcon = L.divIcon({
-        className: "junction-name-label",
-        html: `<div style="display:inline-block; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.96); color:#111827; border:1px solid rgba(17,24,39,0.15); font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${labelText}</div>`,
-        iconSize: [labelWidth, 20],
-        iconAnchor: [Math.floor(labelWidth / 2), -12],
-      });
-      L.marker([coords.lat, coords.lng], {
-        icon: labelIcon,
-        interactive: false,
-        keyboard: false,
-      }).addTo(layers);
-    });
-  }, [data, routeResult, source, destination, selectedRouteIndex, mapReady]);
 
   const handleFindRoute = useCallback(async () => {
     if (!source || !destination) return;
@@ -276,6 +108,9 @@ const UserRoutePage = () => {
       const result = await findRoutesMutation.mutateAsync({ source, destination });
       setRouteResult(result);
       setSelectedRouteIndex(0);
+      setRouteLocked(false);
+      setLiveCost(null);
+      setLastFetchTime(Date.now());
       if (result.routes.length === 0) toast.error("No route found between selected junctions");
     } catch {
       toast.error("Backend route service unavailable");
@@ -288,16 +123,120 @@ const UserRoutePage = () => {
     setDestination("");
     setRouteResult(null);
     setSelectedRouteIndex(0);
+    setRouteLocked(false);
+    setLiveCost(null);
+    setLastFetchTime(0);
   }, []);
+
+  // Lock route when user selects one
+  const handleSelectRoute = useCallback((idx: number) => {
+    setSelectedRouteIndex(idx);
+    setRouteLocked(true);
+    setRerouteSuggestion(null);
+    setLiveCost(null);
+    const route = routeResult?.routes?.[idx];
+    if (route) {
+      originalLockedCostRef.current = route.total_cost + (route.congestion_delay || 0);
+    }
+  }, [routeResult]);
+
+  // Accept reroute suggestion
+  const handleAcceptReroute = useCallback(() => {
+    if (!rerouteSuggestion) return;
+    setRouteResult(rerouteSuggestion.newResult);
+    setSelectedRouteIndex(rerouteSuggestion.bestIndex);
+    originalLockedCostRef.current = (() => {
+      const r = rerouteSuggestion.newResult.routes[rerouteSuggestion.bestIndex];
+      return r ? r.total_cost + (r.congestion_delay || 0) : 0;
+    })();
+    setRerouteSuggestion(null);
+    setLiveCost(null);
+    setLastFetchTime(Date.now());
+  }, [rerouteSuggestion]);
+
+  // Update "fetched X seconds ago" counter
+  useEffect(() => {
+    if (!lastFetchTime) return;
+    const tick = () => setSecondsAgo(Math.floor((Date.now() - lastFetchTime) / 1000));
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [lastFetchTime]);
+
+  // ══════════════════════════════════════════════════════════════════════
+  // BACKGROUND MONITORING — silently checks for better routes every 5s
+  // Only active when route is locked. Never changes UI automatically.
+  // Shows suggestion banner only if a route saves >30s.
+  // Also does "soft update" — updates live cost of locked path.
+  // ══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!routeLocked || !source || !destination) return;
+
+    const monitor = setInterval(async () => {
+      try {
+        const freshResult = await findRoutesMutation.mutateAsync({ source, destination });
+        if (!freshResult.routes.length) return;
+
+        // Find best fresh route
+        let bestIdx = 0;
+        let bestCost = Infinity;
+        freshResult.routes.forEach((r, i) => {
+          const cost = r.total_cost + (r.congestion_delay || 0);
+          if (cost < bestCost) { bestCost = cost; bestIdx = i; }
+        });
+
+        const saving = originalLockedCostRef.current - bestCost;
+
+        // Soft update: find fresh cost of user's SAME locked path
+        const lockedRoute = routeResult?.routes?.[selectedRouteIndex];
+        if (lockedRoute) {
+          const lockedPath = JSON.stringify(lockedRoute.path);
+          const matchingFresh = freshResult.routes.find(r => JSON.stringify(r.path) === lockedPath);
+          if (matchingFresh) {
+            setLiveCost(matchingFresh.total_cost + (matchingFresh.congestion_delay || 0));
+          } else {
+            setLiveCost(null);
+          }
+        }
+
+        // Only suggest reroute if saving > 30 seconds
+        if (saving > 30) {
+          setRerouteSuggestion({ saving: Math.round(saving), newResult: freshResult, bestIndex: bestIdx });
+        } else {
+          setRerouteSuggestion(null);
+        }
+      } catch {
+        // silent — don't disturb user
+      }
+    }, 5000);
+
+    return () => clearInterval(monitor);
+  }, [routeLocked, source, destination, findRoutesMutation]);
 
   const selectedRoute = routeResult?.routes?.[selectedRouteIndex];
 
+  const noopJunctionClick = useCallback(() => {}, []);
+
+  // Memoize props for TrafficMap to prevent unnecessary re-renders
+  const memoizedMultiRoutePaths = useMemo(() => {
+    if (!selectedRoute) return undefined;
+    return [{
+      path: selectedRoute.path,
+      color: getRouteColorByRank(routeResult!.routes)[selectedRouteIndex]
+    }];
+  }, [selectedRoute?.path, routeResult?.routes, selectedRouteIndex]);
+
+  const memoizedRoadStates = useMemo(
+    () => trafficStateData?.road_states || {},
+    [trafficStateData?.road_states]
+  );
+
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-[380px] flex-shrink-0 border-r border-border bg-card">
-        <ScrollArea className="h-full">
-          <div className="space-y-4 p-4">
+      <div style={{ width: 380, minWidth: 380, maxWidth: 380 }} className="flex-shrink-0 border-r border-border bg-card z-20 relative">
+        <div className="h-full overflow-y-auto overflow-x-hidden">
+          <div className="space-y-4 p-4" style={{ maxWidth: 348 }}>
             <div>
               <h2 className="text-lg font-bold text-foreground">Route Finder</h2>
               <p className="text-xs text-muted-foreground">Find optimal routes through the Kukatpally traffic network</p>
@@ -351,160 +290,201 @@ const UserRoutePage = () => {
               )}
             </div>
 
+            {/* Refresh / Staleness indicator */}
+            {routeResult && routeResult.routes.length > 0 && (
+              <div className="flex items-center gap-2 text-xs rounded-md bg-muted/50 px-3 py-1.5">
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={handleFindRoute}
+                  disabled={findRoutesMutation.isPending}
+                  className="h-6 px-2 text-xs gap-1"
+                >
+                  <RefreshCw className={`h-3 w-3 ${findRoutesMutation.isPending ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <span className="text-muted-foreground">
+                  {secondsAgo < 5 ? 'Just now' : `${secondsAgo}s ago`}
+                </span>
+                {routeLocked && (
+                  <span className="ml-auto text-green-500 text-[10px] font-medium">🔒 Locked</span>
+                )}
+              </div>
+            )}
+
+            {/* Stale data warning */}
+            {routeResult && secondsAgo > 30 && !rerouteSuggestion && (
+              <div className="flex items-center gap-2 text-xs rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
+                <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                <span className="text-amber-600 dark:text-amber-400">Traffic data is {secondsAgo}s old — consider refreshing</span>
+              </div>
+            )}
+
+            {/* ⚡ Smart Reroute Suggestion Banner */}
+            {rerouteSuggestion && (
+              <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-2"
+                   style={{ animation: 'pulse 2s ease-in-out infinite', boxShadow: '0 0 12px rgba(16,185,129,0.3)' }}>
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    Faster route available (−{rerouteSuggestion.saving}s)
+                  </span>
+                  <button onClick={() => setRerouteSuggestion(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Traffic conditions changed — a better route was found.
+                </p>
+                <Button size="sm" onClick={handleAcceptReroute}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7">
+                  ⚡ Switch Route
+                </Button>
+              </div>
+            )}
+
             {/* Route Selection Cards */}
             {routeResult && routeResult.routes.length > 0 && (
               <div className="space-y-2">
                 <Label className="text-xs font-medium">Available Routes</Label>
                 <div className="grid gap-2">
-                  {routeResult.routes.map((route, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedRouteIndex(idx)}
-                      className={`w-full rounded-lg border p-3 text-left transition-all ${
-                        selectedRouteIndex === idx 
-                          ? "border-primary bg-primary/10 ring-1 ring-primary" 
-                          : "border-border hover:bg-accent/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span 
-                            className="h-3 w-3 rounded-full" 
-                            style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[idx] : "#6b7280" }} 
-                          />
-                          <span className="text-sm font-medium">{getRouteLabelByRank(routeResult.routes)[idx]}</span>
+                  {routeResult.routes.map((route, idx) => {
+                    const totalTime = route.total_cost + (route.congestion_delay || 0);
+                    const sigSummary = route.signals_summary || { green: 0, red: 0 };
+                    const isLocked = routeLocked && selectedRouteIndex === idx;
+                    const showLive = isLocked && liveCost !== null && Math.abs(liveCost - totalTime) > 2;
+                    const liveDelta = liveCost !== null ? liveCost - totalTime : 0;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectRoute(idx)}
+                        className={`w-full rounded-xl border p-3 text-left transition-all duration-300 overflow-hidden outline-none select-none ${
+                          selectedRouteIndex === idx
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] z-10 relative"
+                            : "border-border bg-card hover:border-primary/50 hover:bg-muted/50 hover:shadow-sm hover:-translate-y-1"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full min-w-0 gap-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span
+                              className="h-3 w-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: getRouteColorByRank(routeResult.routes)[idx] }}
+                            />
+                            <span className="text-sm font-medium truncate">{getRouteLabelByRank(routeResult.routes)[idx]}</span>
+                          </div>
+                          <span className="text-sm font-mono font-bold whitespace-nowrap flex-shrink-0">{formatTime(totalTime)}</span>
                         </div>
-                        <span className="text-sm font-mono font-bold">{(route.total_cost + (route.congestion_delay || 0)).toFixed(1)}s</span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{route.num_junctions} junctions</span>
-                        {route.congestion_delay && route.congestion_delay > 0 && (
-                          <span className="text-amber-600">+{route.congestion_delay}s delay</span>
+                        {/* Soft live cost update */}
+                        {showLive && (
+                          <div className="mt-1 flex items-center gap-1.5 text-xs">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">now</span>
+                            <span className={`font-mono font-bold ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                              {formatTime(liveCost!)}
+                            </span>
+                            <span className={`text-[10px] ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                              ({liveDelta > 0 ? '+' : ''}{Math.round(liveDelta)}s)
+                            </span>
+                          </div>
                         )}
-                      </div>
-                    </button>
-                  ))}
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="whitespace-nowrap">🛑 {route.num_junctions} junctions</span>
+                          {route.congestion_delay && route.congestion_delay > 0 && (
+                            <span className="text-amber-600 whitespace-nowrap">⏳ +{Math.round(route.congestion_delay)}s delay</span>
+                          )}
+                        </div>
+                        {/* Signal summary */}
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                          {sigSummary.green > 0 && (
+                            <span className="text-green-600 whitespace-nowrap">🟢 {sigSummary.green} GREEN</span>
+                          )}
+                          {sigSummary.red > 0 && (
+                            <span className="text-red-500 whitespace-nowrap">🔴 {sigSummary.red} RED</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Congestion Impact Alert */}
-            {selectedRoute?.congested_junctions && selectedRoute.congested_junctions.length > 0 && (
-              <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                <AlertDescription className="text-xs">
-                  <span className="font-medium">Congestion Impact:</span> This route takes{" "}
-                  <span className="font-bold">+{selectedRoute.congestion_delay}s</span> longer due to{" "}
-                  {selectedRoute.congested_junctions
-                    .filter(cj => cj.density === "HIGH")
-                    .map(cj => cj.id)
-                    .join(", ") || "moderate"}{" "}
-                  density at{" "}
-                  {selectedRoute.congested_junctions.map(cj => cj.id).join(", ")}
-                </AlertDescription>
-              </Alert>
+            {/* Recommendation */}
+            {selectedRoute?.recommendation && (
+              <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2 w-full overflow-hidden">
+                <Lightbulb className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-300 break-words flex-1 min-w-0 leading-relaxed">
+                  {selectedRoute.recommendation}
+                </p>
+              </div>
             )}
 
-            {/* Legend */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs">Legend</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: "#00AA00" }} />
-                  <span>LOW density (0-10 vehicles)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: "#FF8800" }} />
-                  <span>MEDIUM density (11-25 vehicles)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: "#FF0000" }} />
-                  <span>HIGH density (26+ vehicles)</span>
-                </div>
-                <div className="mt-2 border-t pt-2">
-                  <p className="font-medium mb-1">Route Colors:</p>
-                  <div className="flex items-center gap-2">
-                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#22c55e" }} />
-                    <span>Fastest (least time)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#87CEEB" }} />
-                    <span>Middle</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-1 w-4 rounded" style={{ backgroundColor: "#ef4444" }} />
-                    <span>Slowest (most time)</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Selected Route Summary */}
-            {selectedRoute && selectedRoute.success && (
-              <Card className="border-primary/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <span 
-                      className="h-3 w-3 rounded-full" 
-                      style={{ backgroundColor: routeResult ? getRouteColorByRank(routeResult.routes)[selectedRouteIndex] : "#22c55e" }} 
-                    />
-                    {routeResult ? getRouteLabelByRank(routeResult.routes)[selectedRouteIndex] : "Route"}
+            {/* Delay Breakdown */}
+            {selectedRoute?.delay_reasons && selectedRoute.delay_reasons.length > 0 && (
+              <Card className="border-amber-500/30">
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Delay Breakdown
                   </CardTitle>
                 </CardHeader>
+                <CardContent className="space-y-2 text-xs">
+                  {selectedRoute.delay_reasons.map((dr) => (
+                    <div key={dr.junction_id} className="rounded-md bg-muted/50 p-2">
+                      <div className="flex flex-wrap items-center justify-between mb-1 gap-2">
+                        <span className="font-medium truncate">{dr.junction}</span>
+                        <span className="font-mono font-bold text-amber-600 whitespace-nowrap">+{dr.delay}s</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+                        {dr.signal_delay > 0 && (
+                          <span className="whitespace-nowrap">🚦 Signal: {dr.signal_delay}s</span>
+                        )}
+                        {dr.traffic_delay > 0 && (
+                          <span className="whitespace-nowrap">🚗 Traffic: {dr.traffic_delay}s</span>
+                        )}
+                        {dr.queue_delay > 0 && (
+                          <span className="whitespace-nowrap">📊 Queue: {dr.queue_delay}s</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Segment Details Table */}
+            {selectedRoute && selectedRoute.segments && (
+              <Card>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs">Segment Details</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-3 text-xs">
-                  {/* Path */}
-                  <div className="flex flex-wrap items-center gap-1">
-                    {selectedRoute.path.map((id, i) => (
-                      <span key={id} className="flex items-center">
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">{getJunctionName(id)}</span>
-                        {i < selectedRoute.path.length - 1 && <ArrowRight className="mx-0.5 h-3 w-3 text-muted-foreground" />}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-md bg-muted p-2 text-center">
-                      <p className="text-lg font-bold text-foreground">{selectedRoute.total_cost.toFixed(1)}s</p>
-                      <p className="text-muted-foreground">Base Time</p>
-                    </div>
-                    <div className="rounded-md bg-muted p-2 text-center">
-                      <p className="text-lg font-bold text-foreground">{selectedRoute.num_junctions}</p>
-                      <p className="text-muted-foreground">Junctions</p>
-                    </div>
-                    <div className="rounded-md bg-amber-500/10 p-2 text-center">
-                      <p className="text-lg font-bold text-amber-600">+{selectedRoute.congestion_delay || 0}s</p>
-                      <p className="text-muted-foreground">Delay</p>
-                    </div>
-                  </div>
-
-                  {/* Segment Table */}
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs">From</TableHead>
                         <TableHead className="text-xs">To</TableHead>
+                        <TableHead className="text-xs">⚡</TableHead>
                         <TableHead className="text-right text-xs">Time</TableHead>
                         <TableHead className="text-right text-xs">Delay</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selectedRoute.segments.map((seg, i) => {
-                        const congested = selectedRoute.congested_junctions?.find(cj => cj.id === seg.to_junction);
+                        const segDelay = (seg.traffic_delay || 0) + (seg.signal_delay || 0) + (seg.queue_delay || 0) + (seg.congestion_penalty || 0);
                         return (
                           <TableRow key={i}>
                             <TableCell className="text-xs">{getJunctionName(seg.from_junction)}</TableCell>
                             <TableCell className="text-xs">{getJunctionName(seg.to_junction)}</TableCell>
+                            <TableCell className="text-xs">
+                              {seg.signal_status === "GREEN" ? "🟢" : seg.signal_status === "RED" ? "🔴" : "—"}
+                            </TableCell>
                             <TableCell className="text-right font-mono text-xs">{seg.cost.toFixed(1)}s</TableCell>
                             <TableCell className="text-right font-mono text-xs">
-                              {congested ? (
-                                <span className={congested.density === "HIGH" ? "text-red-500" : "text-amber-500"}>
-                                  +{congested.delay}s
+                              {segDelay > 0.5 ? (
+                                <span className={segDelay >= 25 ? "text-red-500" : "text-amber-500"}>
+                                  +{segDelay.toFixed(1)}s
                                 </span>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
                           </TableRow>
@@ -520,7 +500,7 @@ const UserRoutePage = () => {
                       Total Travel Time
                     </div>
                     <span className="text-lg font-bold">
-                      {(selectedRoute.total_cost + (selectedRoute.congestion_delay || 0)).toFixed(1)}s
+                      {formatTime(selectedRoute.total_cost + (selectedRoute.congestion_delay || 0))}
                     </span>
                   </div>
                 </CardContent>
@@ -535,12 +515,21 @@ const UserRoutePage = () => {
               </Card>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Right Map */}
-      <div className="flex-1">
-        <div ref={containerRef} className="h-full w-full" />
+      <div className="flex-1 overflow-hidden relative" style={{ isolation: "isolate" }}>
+        <TrafficMap
+          junctions={safeJunctions}
+          roads={roads}
+          roadStates={memoizedRoadStates}
+          flyTo={null}
+          onJunctionClick={noopJunctionClick}
+          sourceJunction={source || null}
+          destinationJunction={destination || null}
+          multiRoutePaths={memoizedMultiRoutePaths}
+        />
       </div>
     </div>
   );
