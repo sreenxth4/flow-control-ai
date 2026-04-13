@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import "./junction-label.css";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+
 // Import static road geometries
 import roadGeometries from "@/data/road_geometries.json";
 
@@ -234,7 +236,7 @@ export function TrafficMap({
 
   // ── Fetch map region metadata once (provides incoming_roads / outgoing_roads) ──
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/map")
+    fetch(`${BASE_URL}/api/v1/map`)
       .then((r) => r.json())
       .then((data) => setMapRegion(data))
       .catch(() => { });
@@ -243,7 +245,7 @@ export function TrafficMap({
   // ── Poll junction_signals every 5 seconds for live per-road signal data ──
   useEffect(() => {
     const poll = () => {
-      fetch("http://localhost:5000/api/junction_signals")
+      fetch(`${BASE_URL}/api/junction_signals`)
         .then((r) => r.json())
         .then((data) => {
           if (data?.junctions) {

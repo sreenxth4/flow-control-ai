@@ -7,6 +7,8 @@ import type { DensityLevel } from "@/lib/types";
 import { TrafficMap } from "@/components/TrafficMap";
 import "@/components/junction-label.css";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+
 // Junction camera options — Kukatpally Zone
 const JUNCTION_CAMERAS = [
   { id: "J1", name: "Kukatpally Y Junction" },
@@ -63,7 +65,7 @@ const UserMapPage = () => {
   // Poll junction_signals for live signal data
   useEffect(() => {
     const poll = () => {
-      fetch("http://localhost:5000/api/junction_signals")
+      fetch(`${BASE_URL}/api/junction_signals`)
         .then((r) => r.json())
         .then((data) => {
           if (data?.junctions) {

@@ -14,6 +14,8 @@ import { TrafficMap } from "@/components/TrafficMap";
 import "./junction-label.css";
 import { useQueryClient } from "@tanstack/react-query";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+
 // Junction camera options - Kukatpally Zone
 const JUNCTION_CAMERAS = [
   { id: "J1", name: "Kukatpally Y Junction" },
@@ -121,7 +123,7 @@ export function VideoDetectionPanel() {
   // Poll junction_signals for live signal data (used by expanded cards)
   useEffect(() => {
     const poll = () => {
-      fetch("http://localhost:5000/api/junction_signals")
+      fetch(`${BASE_URL}/api/junction_signals`)
         .then((r) => r.json())
         .then((data) => {
           if (data?.junctions) {

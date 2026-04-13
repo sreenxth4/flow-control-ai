@@ -11,6 +11,8 @@ import { TrafficMap } from "@/components/TrafficMap";
 import "./junction-label.css";
 import type { DensityLevel, Junction } from "@/lib/types";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+
 // Density colors: GREEN/ORANGE/RED
 const DENSITY_COLORS: Record<DensityLevel, string> = {
   LOW: "#00AA00",
@@ -48,7 +50,7 @@ export function TrafficDashboard() {
   const [junctionSignals, setJunctionSignals] = useState<Record<string, any>>({});
   useEffect(() => {
     const poll = () => {
-      fetch("http://localhost:5000/api/junction_signals")
+      fetch(`${BASE_URL}/api/junction_signals`)
         .then((r) => r.json())
         .then((data) => {
           if (data?.junctions) setJunctionSignals(data.junctions);
