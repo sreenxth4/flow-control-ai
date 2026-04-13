@@ -4,6 +4,7 @@ Launcher script for Traffic Flow Analysis backend server
 Phase 3.7: Video processing + Frame ingestion
 """
 
+import os
 import socket
 
 from app import create_app
@@ -15,8 +16,10 @@ def _is_port_in_use(host: str, port: int) -> bool:
         return sock.connect_ex((host, port)) == 0
 
 if __name__ == "__main__":
-    host = "127.0.0.1"
-    port = 5000
+    # Render sets PORT env variable; locally default to 5000
+    port = int(os.environ.get("PORT", 5000))
+    # Bind to 0.0.0.0 in production so external traffic can reach the server
+    host = os.environ.get("HOST", "127.0.0.1")
 
     if _is_port_in_use(host, port):
         print(f"Backend already running on http://{host}:{port}. Not starting a duplicate process.")

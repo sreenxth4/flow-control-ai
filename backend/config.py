@@ -2,11 +2,14 @@
 
 Phase 3.5: Detector selection and model configuration.
 """
+import os
 
 # Detector mode: "dummy" or "yolov9"
 # - "dummy": Uses fake stable detections for testing (no ML dependencies)
 # - "yolov9": Uses real YOLOv9 detection (requires ultralytics, torch)
-DETECTOR_MODE = "yolov9"
+# On Render/production, set DETECTOR_MODE=dummy since the model file isn't deployed.
+# Locally, defaults to "yolov9".
+DETECTOR_MODE = os.environ.get("DETECTOR_MODE", "yolov9")
 
 # YOLOv9 model configuration
 YOLOV9_MODEL = "yolov9c.pt"  # Options: yolov9t (fastest), yolov9s, yolov9m, yolov9c (best balance), yolov9e
