@@ -1,73 +1,97 @@
-# Welcome to your Lovable project
+# Flow Control AI — Traffic Flow Analysis & Signal Optimization
 
-## Project info
+An intelligent traffic management system that combines **real-time vehicle detection** (YOLOv9), **adaptive signal optimization** (Max-Pressure algorithm), and **dynamic route planning** (Dijkstra + OSRM) to optimize urban traffic flow.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## 📁 Project Structure
 
-There are several ways of editing your application.
+```
+flow-control-ai/
+├── frontend/          # React + Vite + TypeScript web application
+│   ├── src/
+│   │   ├── components/    # UI components (Map, Dashboard, Panels)
+│   │   ├── pages/         # Admin & User pages
+│   │   ├── hooks/         # Custom React hooks
+│   │   ├── lib/           # API client, utilities, OSRM integration
+│   │   └── layouts/       # Admin & User layout wrappers
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── backend/           # Flask REST API + ML pipeline
+│   ├── app.py             # Main Flask application & API routes
+│   ├── run.py             # Application entry point
+│   ├── config.py          # Configuration settings
+│   ├── modules/
+│   │   ├── density_analyzer.py    # Vehicle density analysis
+│   │   ├── network_model.py       # Road network graph model
+│   │   ├── signal_optimizer.py    # Max-Pressure signal optimization
+│   │   ├── route_optimizer.py     # Dijkstra shortest-path routing
+│   │   ├── traffic_state.py       # Live traffic state management
+│   │   ├── video_processor.py     # Video frame processing pipeline
+│   │   └── tracker.py             # Vehicle tracking (DeepSORT-style)
+│   ├── detector/
+│   │   ├── yolo_v9_detector.py    # YOLOv9 vehicle detection
+│   │   └── dummy_detector.py      # Mock detector for testing
+│   ├── data/                      # Junction & signal configuration
+│   └── requirements.txt
+│
+└── README.md
+```
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 🚀 Quick Start
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
+- **Node.js** ≥ 18 & **npm**
+- **Python** ≥ 3.10
+- YOLOv9 model weights (`yolov9c.pt`) — place in `backend/`
 
-**Use your preferred IDE**
+### Backend
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+cd backend
+pip install -r requirements.txt
+python run.py
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The API server starts at `http://localhost:5000`.
 
-Follow these steps:
+### Frontend
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The dev server starts at `http://localhost:5173`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## ✨ Key Features
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Feature | Description |
+|---|---|
+| **Real-Time Detection** | YOLOv9-based vehicle detection from traffic camera feeds |
+| **Density Analysis** | PCU-weighted density computation per road segment |
+| **Signal Optimization** | Max-Pressure algorithm for adaptive green-phase timing |
+| **Dynamic Routing** | Live traffic-aware shortest path with OSRM road geometries |
+| **Interactive Map** | Leaflet-based map with junction labels, road overlays & heatmaps |
+| **Admin Dashboard** | Video upload, detection monitoring, signal control panel |
+| **User Portal** | Real-time traffic conditions, route planning & navigation |
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## 🛠 Tech Stack
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Leaflet, shadcn/ui
+- **Backend:** Python, Flask, YOLOv9, OpenCV, NumPy
+- **Algorithms:** Max-Pressure signal control, Dijkstra pathfinding, OSRM routing
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## 📄 License
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project is for educational and research purposes.

@@ -1,0 +1,923 @@
+{
+  "region_name": "Kukatpally Zone",
+  "description": "10-junction prototype deployment region \u00e2\u20ac\u201d Kukatpally, Hyderabad. Mesh topology with multiple alternate routes between any two junctions.",
+  "junctions": [
+    {
+      "id": "J1",
+      "name": "Kukatpally Y Junction",
+      "latitude": 17.496459,
+      "longitude": 78.386993,
+      "type": "signalized",
+      "incoming_roads": [
+        "R12",
+        "R31"
+      ],
+      "outgoing_roads": [
+        "R11",
+        "R13",
+        "R14"
+      ]
+    },
+    {
+      "id": "J2",
+      "name": "KPHB Colony Signal",
+      "latitude": 17.493052,
+      "longitude": 78.393623,
+      "type": "signalized",
+      "incoming_roads": [
+        "R11",
+        "R32"
+      ],
+      "outgoing_roads": [
+        "R12",
+        "R23",
+        "R25",
+        "R26",
+        "R712",
+        "R713"
+      ]
+    },
+    {
+      "id": "J3",
+      "name": "JNTU Gate Junction",
+      "latitude": 17.489253,
+      "longitude": 78.390491,
+      "type": "signalized",
+      "incoming_roads": [
+        "R13",
+        "R23"
+      ],
+      "outgoing_roads": [
+        "R31",
+        "R32",
+        "R35",
+        "R38",
+        "R714"
+      ]
+    },
+    {
+      "id": "J4",
+      "name": "Kukatpally Bus Depot",
+      "latitude": 17.496208,
+      "longitude": 78.383766,
+      "type": "signalized",
+      "incoming_roads": [
+        "R14",
+        "R54"
+      ],
+      "outgoing_roads": [
+        "R42",
+        "R45",
+        "R46",
+        "R49",
+        "R711"
+      ]
+    },
+    {
+      "id": "J5",
+      "name": "Balanagar X Roads",
+      "latitude": 17.485515,
+      "longitude": 78.382999,
+      "type": "signalized",
+      "incoming_roads": [
+        "R25",
+        "R75"
+      ],
+      "outgoing_roads": [
+        "R52",
+        "R53",
+        "R54",
+        "R57",
+        "R58"
+      ]
+    },
+    {
+      "id": "J6",
+      "name": "Allwyn X Roads",
+      "latitude": 17.497845,
+      "longitude": 78.389626,
+      "type": "signalized",
+      "incoming_roads": [
+        "R26",
+        "R106"
+      ],
+      "outgoing_roads": [
+        "R62",
+        "R64",
+        "R610"
+      ]
+    },
+    {
+      "id": "J7",
+      "name": "Moosapet X Roads",
+      "latitude": 17.48948,
+      "longitude": 78.379582,
+      "type": "signalized",
+      "incoming_roads": [
+        "R57",
+        "R107"
+      ],
+      "outgoing_roads": [
+        "R75",
+        "R710"
+      ]
+    },
+    {
+      "id": "J8",
+      "name": "Petbasheerabad Junction",
+      "latitude": 17.502061,
+      "longitude": 78.386022,
+      "type": "signalized",
+      "incoming_roads": [
+        "R38",
+        "R98"
+      ],
+      "outgoing_roads": [
+        "R83",
+        "R85",
+        "R89"
+      ]
+    },
+    {
+      "id": "J9",
+      "name": "Pragathi Nagar Junction",
+      "latitude": 17.498336,
+      "longitude": 78.386346,
+      "type": "signalized",
+      "incoming_roads": [
+        "R89",
+        "R49"
+      ],
+      "outgoing_roads": [
+        "R93",
+        "R94",
+        "R98"
+      ]
+    },
+    {
+      "id": "J10",
+      "name": "Bachupally Junction",
+      "latitude": 17.494785,
+      "longitude": 78.387235,
+      "type": "signalized",
+      "incoming_roads": [
+        "R610",
+        "R710"
+      ],
+      "outgoing_roads": [
+        "R106",
+        "R107"
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "id": "R11",
+      "name": "KPHB Main Road East",
+      "from_junction": "J1",
+      "to_junction": "J2",
+      "length_meters": 550,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R12",
+      "name": "KPHB Main Road West",
+      "from_junction": "J2",
+      "to_junction": "J1",
+      "length_meters": 550,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R13",
+      "name": "NH65 Southbound",
+      "from_junction": "J1",
+      "to_junction": "J3",
+      "length_meters": 700,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R14",
+      "name": "Kukatpally Main Road",
+      "from_junction": "J1",
+      "to_junction": "J4",
+      "length_meters": 480,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R23",
+      "name": "KPHB-JNTU Connector",
+      "from_junction": "J2",
+      "to_junction": "J3",
+      "length_meters": 450,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R25",
+      "name": "Balanagar Road South",
+      "from_junction": "J2",
+      "to_junction": "J5",
+      "length_meters": 1400,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R26",
+      "name": "Allwyn Colony Road South",
+      "from_junction": "J2",
+      "to_junction": "J6",
+      "length_meters": 580,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R31",
+      "name": "NH65 Northbound",
+      "from_junction": "J3",
+      "to_junction": "J1",
+      "length_meters": 700,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R32",
+      "name": "JNTU-KPHB Road",
+      "from_junction": "J3",
+      "to_junction": "J2",
+      "length_meters": 450,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R35",
+      "name": "JNTU-Balanagar Road",
+      "from_junction": "J3",
+      "to_junction": "J5",
+      "length_meters": 1100,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R38",
+      "name": "Pragathi Nagar Road North",
+      "from_junction": "J3",
+      "to_junction": "J8",
+      "length_meters": 1500,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R42",
+      "name": "NH65 via Bus Depot",
+      "from_junction": "J4",
+      "to_junction": "J2",
+      "length_meters": 1000,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R45",
+      "name": "Industrial Corridor",
+      "from_junction": "J4",
+      "to_junction": "J5",
+      "length_meters": 1300,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R46",
+      "name": "Allwyn Connector",
+      "from_junction": "J4",
+      "to_junction": "J6",
+      "length_meters": 550,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R49",
+      "name": "Depot-Pragathi Nagar Road",
+      "from_junction": "J4",
+      "to_junction": "J9",
+      "length_meters": 950,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R52",
+      "name": "Balanagar Road North",
+      "from_junction": "J5",
+      "to_junction": "J2",
+      "length_meters": 1400,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R53",
+      "name": "Balanagar-JNTU Road",
+      "from_junction": "J5",
+      "to_junction": "J3",
+      "length_meters": 1100,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R54",
+      "name": "Balanagar-Depot Road",
+      "from_junction": "J5",
+      "to_junction": "J4",
+      "length_meters": 1300,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R57",
+      "name": "Balanagar-Moosapet Link",
+      "from_junction": "J5",
+      "to_junction": "J7",
+      "length_meters": 600,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R58",
+      "name": "Balanagar North Road",
+      "from_junction": "J5",
+      "to_junction": "J8",
+      "length_meters": 1800,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R62",
+      "name": "Allwyn Colony Road North",
+      "from_junction": "J6",
+      "to_junction": "J2",
+      "length_meters": 580,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R64",
+      "name": "Allwyn-Depot Connector",
+      "from_junction": "J6",
+      "to_junction": "J4",
+      "length_meters": 550,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R610",
+      "name": "Bachupally Road East",
+      "from_junction": "J6",
+      "to_junction": "J10",
+      "length_meters": 850,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R72",
+      "name": "Moosapet-KPHB Road",
+      "from_junction": "J7",
+      "to_junction": "J2",
+      "length_meters": 1500,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R75",
+      "name": "Moosapet-Balanagar Road",
+      "from_junction": "J7",
+      "to_junction": "J5",
+      "length_meters": 600,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R710",
+      "name": "Outer Ring Road Link",
+      "from_junction": "J7",
+      "to_junction": "J10",
+      "length_meters": 1700,
+      "lanes": 2,
+      "speed_limit": 60
+    },
+    {
+      "id": "R83",
+      "name": "Petbasheerabad-JNTU Road",
+      "from_junction": "J8",
+      "to_junction": "J3",
+      "length_meters": 1500,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R85",
+      "name": "Petbasheerabad-Balanagar Road",
+      "from_junction": "J8",
+      "to_junction": "J5",
+      "length_meters": 1800,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R89",
+      "name": "Pragathi Nagar Road South",
+      "from_junction": "J8",
+      "to_junction": "J9",
+      "length_meters": 700,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R93",
+      "name": "Pragathi Nagar-JNTU Road",
+      "from_junction": "J9",
+      "to_junction": "J3",
+      "length_meters": 1200,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R94",
+      "name": "Pragathi Nagar-Depot Road",
+      "from_junction": "J9",
+      "to_junction": "J4",
+      "length_meters": 950,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R98",
+      "name": "Pragathi Nagar-Petbasheerabad Road",
+      "from_junction": "J9",
+      "to_junction": "J8",
+      "length_meters": 700,
+      "lanes": 2,
+      "speed_limit": 40
+    },
+    {
+      "id": "R106",
+      "name": "Bachupally Road West",
+      "from_junction": "J10",
+      "to_junction": "J6",
+      "length_meters": 850,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R107",
+      "name": "Bachupally-Moosapet Road",
+      "from_junction": "J10",
+      "to_junction": "J7",
+      "length_meters": 1700,
+      "lanes": 2,
+      "speed_limit": 50
+    },
+    {
+      "id": "R711",
+      "name": "Kukatpally Main Road (Reverse)",
+      "from_junction": "J4",
+      "to_junction": "J1",
+      "lanes": 2,
+      "speed_limit": 40,
+      "length_km": 1.0
+    },
+    {
+      "id": "R712",
+      "name": "NH65 via Bus Depot (Reverse)",
+      "from_junction": "J2",
+      "to_junction": "J4",
+      "lanes": 2,
+      "speed_limit": 40,
+      "length_km": 1.0
+    },
+    {
+      "id": "R713",
+      "name": "Moosapet-KPHB Road (Reverse)",
+      "from_junction": "J2",
+      "to_junction": "J7",
+      "lanes": 2,
+      "speed_limit": 40,
+      "length_km": 1.0
+    },
+    {
+      "id": "R714",
+      "name": "Pragathi Nagar-JNTU Road (Reverse)",
+      "from_junction": "J3",
+      "to_junction": "J9",
+      "lanes": 2,
+      "speed_limit": 40,
+      "length_km": 1.0
+    }
+  ],
+  "signal_phases": [
+    {
+      "junction_id": "J1",
+      "phases": [
+        {
+          "phase_id": "P1_A",
+          "name": "KPHB Corridor",
+          "green_roads": [
+            "R11",
+            "R12"
+          ],
+          "conflicting_phases": [
+            "P1_B",
+            "P1_C"
+          ],
+          "min_green": 20,
+          "max_green": 60
+        },
+        {
+          "phase_id": "P1_B",
+          "name": "NH65 Through",
+          "green_roads": [
+            "R13",
+            "R31"
+          ],
+          "conflicting_phases": [
+            "P1_A",
+            "P1_C"
+          ],
+          "min_green": 15,
+          "max_green": 50
+        },
+        {
+          "phase_id": "P1_C",
+          "name": "Bus Depot Direction",
+          "green_roads": [
+            "R14"
+          ],
+          "conflicting_phases": [
+            "P1_A",
+            "P1_B"
+          ],
+          "min_green": 10,
+          "max_green": 40
+        }
+      ]
+    },
+    {
+      "junction_id": "J2",
+      "phases": [
+        {
+          "phase_id": "P2_A",
+          "name": "KPHB Main Corridor",
+          "green_roads": [
+            "R11",
+            "R12"
+          ],
+          "conflicting_phases": [
+            "P2_B",
+            "P2_C"
+          ],
+          "min_green": 25,
+          "max_green": 65
+        },
+        {
+          "phase_id": "P2_B",
+          "name": "JNTU-Balanagar Cross",
+          "green_roads": [
+            "R23",
+            "R32",
+            "R25",
+            "R52"
+          ],
+          "conflicting_phases": [
+            "P2_A",
+            "P2_C"
+          ],
+          "min_green": 15,
+          "max_green": 50
+        },
+        {
+          "phase_id": "P2_C",
+          "name": "Allwyn-Moosapet Flow",
+          "green_roads": [
+            "R26",
+            "R62",
+            "R72"
+          ],
+          "conflicting_phases": [
+            "P2_A",
+            "P2_B"
+          ],
+          "min_green": 10,
+          "max_green": 40
+        }
+      ]
+    },
+    {
+      "junction_id": "J3",
+      "phases": [
+        {
+          "phase_id": "P3_A",
+          "name": "NH65 Flow",
+          "green_roads": [
+            "R13",
+            "R31"
+          ],
+          "conflicting_phases": [
+            "P3_B",
+            "P3_C"
+          ],
+          "min_green": 20,
+          "max_green": 55
+        },
+        {
+          "phase_id": "P3_B",
+          "name": "KPHB-Balanagar Connector",
+          "green_roads": [
+            "R23",
+            "R32",
+            "R35",
+            "R53"
+          ],
+          "conflicting_phases": [
+            "P3_A",
+            "P3_C"
+          ],
+          "min_green": 15,
+          "max_green": 45
+        },
+        {
+          "phase_id": "P3_C",
+          "name": "North Corridor",
+          "green_roads": [
+            "R38",
+            "R83",
+            "R93"
+          ],
+          "conflicting_phases": [
+            "P3_A",
+            "P3_B"
+          ],
+          "min_green": 10,
+          "max_green": 40
+        }
+      ]
+    },
+    {
+      "junction_id": "J4",
+      "phases": [
+        {
+          "phase_id": "P4_A",
+          "name": "Bus Exit Flow",
+          "green_roads": [
+            "R42",
+            "R45",
+            "R49"
+          ],
+          "conflicting_phases": [
+            "P4_B",
+            "P4_C"
+          ],
+          "min_green": 20,
+          "max_green": 60
+        },
+        {
+          "phase_id": "P4_B",
+          "name": "Bus Entry Flow",
+          "green_roads": [
+            "R14",
+            "R54",
+            "R94"
+          ],
+          "conflicting_phases": [
+            "P4_A",
+            "P4_C"
+          ],
+          "min_green": 15,
+          "max_green": 50
+        },
+        {
+          "phase_id": "P4_C",
+          "name": "Allwyn Link",
+          "green_roads": [
+            "R46",
+            "R64"
+          ],
+          "conflicting_phases": [
+            "P4_A",
+            "P4_B"
+          ],
+          "min_green": 10,
+          "max_green": 35
+        }
+      ]
+    },
+    {
+      "junction_id": "J5",
+      "phases": [
+        {
+          "phase_id": "P5_A",
+          "name": "Industrial Inflow",
+          "green_roads": [
+            "R25",
+            "R35",
+            "R45",
+            "R75",
+            "R85"
+          ],
+          "conflicting_phases": [
+            "P5_B",
+            "P5_C"
+          ],
+          "min_green": 20,
+          "max_green": 60
+        },
+        {
+          "phase_id": "P5_B",
+          "name": "Industrial Outflow",
+          "green_roads": [
+            "R52",
+            "R53",
+            "R54"
+          ],
+          "conflicting_phases": [
+            "P5_A",
+            "P5_C"
+          ],
+          "min_green": 15,
+          "max_green": 50
+        },
+        {
+          "phase_id": "P5_C",
+          "name": "Moosapet-North Flow",
+          "green_roads": [
+            "R57",
+            "R58"
+          ],
+          "conflicting_phases": [
+            "P5_A",
+            "P5_B"
+          ],
+          "min_green": 10,
+          "max_green": 40
+        }
+      ]
+    },
+    {
+      "junction_id": "J6",
+      "phases": [
+        {
+          "phase_id": "P6_A",
+          "name": "Colony Main Flow",
+          "green_roads": [
+            "R62",
+            "R64"
+          ],
+          "conflicting_phases": [
+            "P6_B"
+          ],
+          "min_green": 20,
+          "max_green": 55
+        },
+        {
+          "phase_id": "P6_B",
+          "name": "Bachupally Link",
+          "green_roads": [
+            "R610",
+            "R46",
+            "R26"
+          ],
+          "conflicting_phases": [
+            "P6_A"
+          ],
+          "min_green": 15,
+          "max_green": 45
+        }
+      ]
+    },
+    {
+      "junction_id": "J7",
+      "phases": [
+        {
+          "phase_id": "P7_A",
+          "name": "Moosapet Main Flow",
+          "green_roads": [
+            "R72",
+            "R75"
+          ],
+          "conflicting_phases": [
+            "P7_B"
+          ],
+          "min_green": 20,
+          "max_green": 55
+        },
+        {
+          "phase_id": "P7_B",
+          "name": "ORR Connector",
+          "green_roads": [
+            "R710",
+            "R57"
+          ],
+          "conflicting_phases": [
+            "P7_A"
+          ],
+          "min_green": 15,
+          "max_green": 45
+        }
+      ]
+    },
+    {
+      "junction_id": "J8",
+      "phases": [
+        {
+          "phase_id": "P8_A",
+          "name": "Southbound Flow",
+          "green_roads": [
+            "R83",
+            "R85"
+          ],
+          "conflicting_phases": [
+            "P8_B"
+          ],
+          "min_green": 20,
+          "max_green": 50
+        },
+        {
+          "phase_id": "P8_B",
+          "name": "Pragathi Nagar Flow",
+          "green_roads": [
+            "R89",
+            "R38",
+            "R58"
+          ],
+          "conflicting_phases": [
+            "P8_A"
+          ],
+          "min_green": 15,
+          "max_green": 45
+        }
+      ]
+    },
+    {
+      "junction_id": "J9",
+      "phases": [
+        {
+          "phase_id": "P9_A",
+          "name": "Southbound Flow",
+          "green_roads": [
+            "R93",
+            "R94"
+          ],
+          "conflicting_phases": [
+            "P9_B"
+          ],
+          "min_green": 20,
+          "max_green": 50
+        },
+        {
+          "phase_id": "P9_B",
+          "name": "Petbasheerabad-Depot Arrival",
+          "green_roads": [
+            "R98",
+            "R89",
+            "R49"
+          ],
+          "conflicting_phases": [
+            "P9_A"
+          ],
+          "min_green": 15,
+          "max_green": 45
+        }
+      ]
+    },
+    {
+      "junction_id": "J10",
+      "phases": [
+        {
+          "phase_id": "P10_A",
+          "name": "Allwyn Direction",
+          "green_roads": [
+            "R106"
+          ],
+          "conflicting_phases": [
+            "P10_B"
+          ],
+          "min_green": 20,
+          "max_green": 55
+        },
+        {
+          "phase_id": "P10_B",
+          "name": "Moosapet-ORR Direction",
+          "green_roads": [
+            "R107",
+            "R610",
+            "R710"
+          ],
+          "conflicting_phases": [
+            "P10_A"
+          ],
+          "min_green": 15,
+          "max_green": 50
+        }
+      ]
+    }
+  ]
+}
