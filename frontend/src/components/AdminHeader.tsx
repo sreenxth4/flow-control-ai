@@ -23,8 +23,9 @@ export function AdminHeader() {
   return (
     <header className="relative z-50 flex h-12 items-center justify-between border-b border-border bg-background px-4">
       <div className="flex items-center gap-6">
+        <img src="/logo.png" alt="Logo" className="h-7 w-auto rounded-md" />
         <span className="text-sm font-bold tracking-tight text-foreground">
-          🚦 AI Traffic <span className="ml-1 rounded bg-accent/15 px-1.5 py-0.5 text-xs font-semibold text-accent">Admin</span>
+          AI Traffic <span className="ml-1 rounded bg-accent/15 px-1.5 py-0.5 text-xs font-semibold text-accent">Admin</span>
         </span>
         <nav className="flex items-center gap-1">
           {navItems.map((item) => (

@@ -15,8 +15,9 @@ export function UserHeader() {
   return (
     <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4">
       <div className="flex items-center gap-6">
+        <img src="/logo.png" alt="Logo" className="h-7 w-auto rounded-md" />
         <span className="text-sm font-bold tracking-tight text-foreground">
-          🚦 AI Traffic
+          AI Traffic
         </span>
         <nav className="flex items-center gap-1">
           {navItems.map((item) => (
