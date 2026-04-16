@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 220 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 10%;
+
+    --primary: 210 90% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 92%;
+    --secondary-foreground: 220 30% 15%;
+
+    --muted: 220 15% 94%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 170 60% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 210 90% 45%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 220 25% 12%;
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 210 90% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 18%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 210 90% 55%;
+
+    --traffic-low: 142 72% 42%;
+    --traffic-medium: 45 93% 50%;
+    --traffic-high: 0 84% 55%;
+    --traffic-low-foreground: 0 0% 100%;
+    --traffic-medium-foreground: 0 0% 10%;
+    --traffic-high-foreground: 0 0% 100%;
+
+    --chart-1: 210 90% 45%;
+    --chart-2: 170 60% 40%;
+    --chart-3: 45 93% 50%;
+    --chart-4: 280 60% 50%;
+    --chart-5: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 222 30% 8%;
+    --foreground: 210 20% 92%;
+
+    --card: 222 25% 12%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 222 25% 12%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 210 85% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 220 20% 16%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 170 55% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 210 85% 55%;
+
+    --sidebar-background: 222 30% 6%;
+    --sidebar-foreground: 220 10% 80%;
+    --sidebar-primary: 210 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 25% 12%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 222 20% 14%;
+    --sidebar-ring: 210 85% 55%;
+
+    --traffic-low: 142 60% 48%;
+    --traffic-medium: 45 90% 55%;
+    --traffic-high: 0 75% 55%;
+    --traffic-low-foreground: 0 0% 10%;
+    --traffic-medium-foreground: 0 0% 10%;
+    --traffic-high-foreground: 0 0% 100%;
+
+    --chart-1: 210 85% 55%;
+    --chart-2: 170 55% 45%;
+    --chart-3: 45 90% 55%;
+    --chart-4: 280 55% 55%;
+    --chart-5: 0 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply bg-card text-card-foreground rounded-lg shadow-lg border border-border;
+}
+
+.leaflet-popup-tip {
+  @apply bg-card;
+}
+
+.leaflet-control-zoom a {
+  @apply bg-card text-card-foreground border-border;
+}
+
+/* Density pulse animation */
+@keyframes density-pulse {
+  0%, 100% { 
+    opacity: 0.9;
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.6;
+    transform: scale(1.15); 
+  }
+}
+
+.animate-density-pulse {
+  animation: density-pulse 2s ease-in-out infinite;
+}
+
+/* Junction highlight pulse for flyTo */
+@keyframes highlight-pulse {
+  0% { 
+    opacity: 0.7;
+    transform: scale(1); 
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.5);
+  }
+  100% { 
+    opacity: 0;
+    transform: scale(2); 
+  }
+}
+
+.junction-highlight-pulse {
+  animation: highlight-pulse 2s ease-out forwards;
+}
+
+/* Junction marker container */
+.junction-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.junction-marker-hitbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.junction-hover-ring {
+  position: absolute;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  opacity: 0;
+  background: transparent;
+  mix-blend-mode: multiply;
+  filter: saturate(1.1);
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.junction-marker:hover .junction-marker-hitbox {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 14px rgba(15, 23, 42, 0.42));
+}
+
+.junction-marker:hover .junction-hover-ring {
+  opacity: 0.26;
+  transform: scale(1.42);
+}
+
+.junction-circle {
+  transition: all 0.3s ease;
+}

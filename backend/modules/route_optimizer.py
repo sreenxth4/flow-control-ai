@@ -7,6 +7,7 @@ Adapted for Learning backend: Uses string junction IDs ("J1", "J2", ...).
 """
 
 import heapq
+import math
 from typing import List, Tuple, Dict
 from modules.network_model import RoadNetwork
 
@@ -24,7 +25,9 @@ class RouteOptimizer:
         """
         self.network = network
 
-    def dijkstra(self, source: str, destination: str) -> Tuple[List[str], float]:
+    def dijkstra(self, source: str, destination: str,
+                 snapshot: dict | None = None,
+                 use_live_cost: bool = False) -> Tuple[List[str], float]:
         """
         Find shortest path using Dijkstra's algorithm.
 
@@ -62,7 +65,14 @@ class RouteOptimizer:
                 if neighbor in visited:
                     continue
 
-                edge_cost = self.network.get_edge_cost(current, neighbor)
+                if use_live_cost and snapshot is not None:
+                    edge_cost = self.network.get_live_edge_cost(current, neighbor, snapshot)
+                else:
+                    edge_cost = self.network.get_edge_cost(current, neighbor)
+
+                if not math.isfinite(edge_cost):
+                    continue
+
                 new_distance = current_dist + edge_cost
 
                 if new_distance < distances[neighbor]:
@@ -87,7 +97,9 @@ class RouteOptimizer:
             return []  # No path found
         return path
 
-    def get_route_details(self, path: List[str], total_cost: float) -> Dict:
+    def get_route_details(self, path: List[str], total_cost: float,
+                          snapshot: dict | None = None,
+                          use_live_cost: bool = False) -> Dict:
         """Get detailed route information including road names and coordinates."""
         if not path:
             return {
@@ -99,11 +111,16 @@ class RouteOptimizer:
             }
 
         segments = []
+        roads = []
         for i in range(len(path) - 1):
             from_j = path[i]
             to_j = path[i + 1]
-            segment_cost = self.network.get_edge_cost(from_j, to_j)
+            if use_live_cost and snapshot is not None:
+                segment_cost = self.network.get_live_edge_cost(from_j, to_j, snapshot)
+            else:
+                segment_cost = self.network.get_edge_cost(from_j, to_j)
             road = self.network.get_edge_road(from_j, to_j) or {}
+            roads.append(road.get("road_id"))
             segments.append({
                 "from": from_j,
                 "from_name": self.network.get_junction_name(from_j),
@@ -131,6 +148,7 @@ class RouteOptimizer:
         return {
             "success": True,
             "path": path,
+            "roads": roads,
             "path_names": [self.network.get_junction_name(j) for j in path],
             "segments": segments,
             "coordinates": coordinates,
@@ -139,7 +157,9 @@ class RouteOptimizer:
             "num_segments": len(segments),
         }
 
-    def find_optimal_route(self, source: str, destination: str) -> Dict:
+    def find_optimal_route(self, source: str, destination: str,
+                           snapshot: dict | None = None,
+                           use_live_cost: bool = False) -> Dict:
         """
         Complete route optimization pipeline.
 
@@ -161,5 +181,15 @@ class RouteOptimizer:
         if source == destination:
             return {"success": False, "message": "Source and destination are the same"}
 
-        path, total_cost = self.dijkstra(source, destination)
-        return self.get_route_details(path, total_cost)
+        path, total_cost = self.dijkstra(
+            source,
+            destination,
+            snapshot=snapshot,
+            use_live_cost=use_live_cost,
+        )
+        return self.get_route_details(
+            path,
+            total_cost,
+            snapshot=snapshot,
+            use_live_cost=use_live_cost,
+        )

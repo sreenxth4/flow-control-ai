@@ -54,7 +54,7 @@ interface TrafficMapProps {
   sourceJunction?: string | null;
   destinationJunction?: string | null;
   turnRestrictions?: TurnRestriction[];
-  multiRoutePaths?: { path: string[]; color: string }[];
+  multiRoutePaths?: { path: string[]; roads?: string[]; color: string }[];
   highlightJunctionId?: string;
   roadStates?: Record<string, { density?: string; pcu?: number; source?: string; signal?: string; vehicles?: number }>;
 }
@@ -229,6 +229,7 @@ export function TrafficMap({
   const junctionMarkersRef = useRef<Record<string, L.CircleMarker>>({}); // junction markers by ID
   const roadLinesRef = useRef<Record<string, L.Polyline>>({}); // road polylines by ID
   const [showTurnRestrictions, setShowTurnRestrictions] = useState(true);
+  const [routeRenderError, setRouteRenderError] = useState<string | null>(null);
 
   // Internal state: junction signal data from polling + map region metadata
   const [signalData, setSignalData] = useState<Record<string, JunctionSignalData>>({});
@@ -295,12 +296,26 @@ export function TrafficMap({
     };
   }, []);
 
+  // ── Resize observer: fix Leaflet grey tiles when container resizes ──
+  useEffect(() => {
+    const container = containerRef.current;
+    const map = mapRef.current;
+    if (!container || !map) return;
+    const ro = new ResizeObserver(() => {
+      setTimeout(() => map.invalidateSize({ animate: false }), 50);
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
   // MAIN RENDERING EFFECT
   // ══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     const layers = layersRef.current;
     if (!layers) return;
+
+    setRouteRenderError(null);
 
     layers.clearLayers();
     junctionMarkersRef.current = {};
@@ -314,20 +329,86 @@ export function TrafficMap({
     const junctionPropMap = new Map<string, Junction>();
     junctions.forEach((j) => junctionPropMap.set(j.id, j));
 
-    // Build route road sets for route highlighting
-    const routeRoadSet = new Set<string>();
-    if (routePath && routePath.length > 1) {
-      for (let i = 0; i < routePath.length - 1; i++) {
-        routeRoadSet.add(`${routePath[i]}-${routePath[i + 1]}`);
-      }
-    }
-    const multiRouteRoadSets = multiRoutePaths.map((r) => {
-      const set = new Set<string>();
-      for (let i = 0; i < r.path.length - 1; i++) {
-        set.add(`${r.path[i]}-${r.path[i + 1]}`);
-      }
-      return { set, color: r.color };
+    const edgeToRoadId = new Map<string, string>();
+    roads.forEach((road) => {
+      edgeToRoadId.set(`${road.from_junction}->${road.to_junction}`, road.id);
     });
+
+    const roadById = new Map<string, Road>();
+    roads.forEach((road) => {
+      roadById.set(road.id, road);
+    });
+
+    const getRoadGeometry = (roadId: string): [number, number][] | null => {
+      const directGeom = typedGeometries[roadId];
+      if (directGeom && directGeom.length >= 2) {
+        return directGeom;
+      }
+
+      const road = roadById.get(roadId);
+      if (!road) {
+        return null;
+      }
+
+      const reverseRoad = roads.find(
+        (r) => r.from_junction === road.to_junction && r.to_junction === road.from_junction
+      );
+      if (!reverseRoad) {
+        return null;
+      }
+
+      const reverseGeom = typedGeometries[reverseRoad.id];
+      if (!reverseGeom || reverseGeom.length < 2) {
+        return null;
+      }
+
+      return [...reverseGeom].reverse() as [number, number][];
+    };
+
+    const resolveRoadIds = (path: string[], explicitRoadIds?: string[]): string[] => {
+      if (explicitRoadIds && explicitRoadIds.length > 0) {
+        if (explicitRoadIds.length !== Math.max(0, path.length - 1)) {
+          throw new Error("Route road mapping mismatch: roads length does not match path hops");
+        }
+        return explicitRoadIds;
+      }
+
+      const resolved: string[] = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const key = `${path[i]}->${path[i + 1]}`;
+        const roadId = edgeToRoadId.get(key);
+        if (!roadId) {
+          throw new Error(`Route mapping failed for hop ${path[i]} -> ${path[i + 1]}`);
+        }
+        resolved.push(roadId);
+      }
+      return resolved;
+    };
+
+    let routeRoadSet = new Set<string>();
+    let multiRouteRoadSets: { set: Set<string>; color: string }[] = [];
+    try {
+      if (routePath && routePath.length > 1) {
+        routeRoadSet = new Set(resolveRoadIds(routePath));
+      }
+
+      multiRouteRoadSets = multiRoutePaths.map((r) => {
+        const resolvedRoads = resolveRoadIds(r.path, r.roads);
+        return { set: new Set(resolvedRoads), color: r.color };
+      });
+
+      const activeRouteRoads = new Set<string>(routeRoadSet);
+      multiRouteRoadSets.forEach((mrs) => mrs.set.forEach((roadId) => activeRouteRoads.add(roadId)));
+      for (const roadId of activeRouteRoads) {
+        const geom = getRoadGeometry(roadId);
+        if (!geom || geom.length < 2) {
+          throw new Error(`Missing geometry for road: ${roadId}`);
+        }
+      }
+    } catch (err) {
+      setRouteRenderError(err instanceof Error ? err.message : "Route rendering failed");
+      return;
+    }
 
     // ── Compute snapped junction centers ──
     const snappedCoords = new Map<string, [number, number]>();
@@ -408,17 +489,13 @@ export function TrafficMap({
     };
 
     roads.forEach((road) => {
-      const geom = typedGeometries[road.id];
+      const geom = getRoadGeometry(road.id);
       if (!geom || geom.length < 2) return;
 
       const DEFAULT_ROAD_COLOR = "#9ca3af";
 
-      const isOnRoute = routeRoadSet.has(
-        `${road.from_junction}-${road.to_junction}`
-      );
-      const multiRouteMatch = multiRouteRoadSets.find((r) =>
-        r.set.has(`${road.from_junction}-${road.to_junction}`)
-      );
+      const isOnRoute = routeRoadSet.has(road.id);
+      const multiRouteMatch = multiRouteRoadSets.find((r) => r.set.has(road.id));
 
       const lineColor = multiRouteMatch
         ? multiRouteMatch.color
@@ -665,6 +742,32 @@ export function TrafficMap({
     const regionJunctions: any[] = mapRegion?.junctions || [];
     const roadMap = new Map(roads.map((r) => [r.id, r]));
 
+    const getRoadGeometry = (roadId: string): [number, number][] | null => {
+      const directGeom = typedGeometries[roadId];
+      if (directGeom && directGeom.length >= 2) {
+        return directGeom;
+      }
+
+      const road = roadMap.get(roadId);
+      if (!road) {
+        return null;
+      }
+
+      const reverseRoad = roads.find(
+        (r) => r.from_junction === road.to_junction && r.to_junction === road.from_junction
+      );
+      if (!reverseRoad) {
+        return null;
+      }
+
+      const reverseGeom = typedGeometries[reverseRoad.id];
+      if (!reverseGeom || reverseGeom.length < 2) {
+        return null;
+      }
+
+      return [...reverseGeom].reverse() as [number, number][];
+    };
+
     regionJunctions.forEach((rj: any) => {
       const jName = rj.name || rj.id;
       const jId = rj.id;
@@ -675,7 +778,7 @@ export function TrafficMap({
 
       // Manual overrides for signal positions that automatic logic can't place correctly
       const MANUAL_SIGNAL_POS: Record<string, [number, number]> = {
-        R98: [17.502061, 78.385930],
+        R98: [17.501943, 78.386014],
         R57: [17.489401, 78.379697],
         R107: [17.489375, 78.379547],
         R75: [17.485428, 78.383042],
@@ -708,11 +811,11 @@ export function TrafficMap({
 
         let dotLat: number, dotLng: number;
 
-        if (reverseRoad && typedGeometries[reverseRoad]) {
-          const reverseGeom = typedGeometries[reverseRoad];
+        const reverseGeom = reverseRoad ? getRoadGeometry(reverseRoad) : null;
+        if (reverseGeom) {
           [dotLat, dotLng] = walkForwardAlongGeometry(reverseGeom, SIGNAL_OFFSET);
         } else {
-          const geom = typedGeometries[rId];
+          const geom = getRoadGeometry(rId);
           if (!geom || geom.length < 2) return;
           [dotLat, dotLng] = walkBackAlongGeometry(geom, SIGNAL_OFFSET);
         }
@@ -738,7 +841,7 @@ export function TrafficMap({
             const outRoad = roadMap.get(outId);
             return outRoad && outRoad.to_junction === firstInRoad.from_junction;
           });
-          const refGeom = firstReverseId ? typedGeometries[firstReverseId] : null;
+          const refGeom = firstReverseId ? getRoadGeometry(firstReverseId) : null;
 
           if (refGeom && refGeom.length >= 2) {
             // Road direction from junction endpoint (geom[0]) outward
@@ -798,6 +901,38 @@ export function TrafficMap({
   // ══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (Object.keys(signalDotsRef.current).length === 0) return;
+
+    const edgeToRoadId = new Map<string, string>();
+    roads.forEach((road) => {
+      edgeToRoadId.set(`${road.from_junction}->${road.to_junction}`, road.id);
+    });
+
+    const resolveRoadIds = (path: string[], explicitRoadIds?: string[]): string[] => {
+      if (explicitRoadIds && explicitRoadIds.length > 0) {
+        return explicitRoadIds;
+      }
+
+      const resolved: string[] = [];
+      for (let i = 0; i < path.length - 1; i++) {
+        const key = `${path[i]}->${path[i + 1]}`;
+        const roadId = edgeToRoadId.get(key);
+        if (!roadId) {
+          return [];
+        }
+        resolved.push(roadId);
+      }
+      return resolved;
+    };
+
+    const routeRoadSet = new Set<string>();
+    if (routePath && routePath.length > 1) {
+      resolveRoadIds(routePath).forEach((roadId) => routeRoadSet.add(roadId));
+    }
+
+    const multiRouteRoadSets = multiRoutePaths.map((r) => ({
+      set: new Set(resolveRoadIds(r.path, r.roads)),
+      color: r.color,
+    }));
 
     const roadMap = new Map(roads.map((r) => [r.id, r]));
     const regionJunctions: any[] = mapRegion?.junctions || [];
@@ -962,22 +1097,8 @@ export function TrafficMap({
       const baseCost = (((road.length_km || 0) / speed) * 3600).toFixed(1);
       const pcuLabel = roadData?.pcu != null ? roadData.pcu : "—";
 
-      const routeRoadSet = new Set<string>();
-      if (routePath && routePath.length > 1) {
-        for (let i = 0; i < routePath.length - 1; i++) {
-          routeRoadSet.add(`${routePath[i]}-${routePath[i + 1]}`);
-        }
-      }
-      const multiRouteRoadSets = multiRoutePaths.map((r) => {
-        const set = new Set<string>();
-        for (let i = 0; i < r.path.length - 1; i++) {
-          set.add(`${r.path[i]}-${r.path[i + 1]}`);
-        }
-        return { set, color: r.color };
-      });
-
-      const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
-      const multiRouteMatch = multiRouteRoadSets.find((r) => r.set.has(`${road.from_junction}-${road.to_junction}`));
+      const isOnRoute = routeRoadSet.has(road.id);
+      const multiRouteMatch = multiRouteRoadSets.find((r) => r.set.has(road.id));
       const DEFAULT_ROAD_COLOR = "#9ca3af";
       const lineColor = multiRouteMatch ? multiRouteMatch.color : isOnRoute ? "#2962ff" : DEFAULT_ROAD_COLOR;
       const DEFAULT_ROAD_WEIGHT = road.lanes >= 3 ? 5 : 4;
@@ -1001,19 +1122,8 @@ export function TrafficMap({
     roads.forEach(road => {
       const line = roadLinesRef.current[road.id];
       if (!line) return;
-      const routeRoadSet = new Set<string>();
-      if (routePath && routePath.length > 1) {
-        for (let i = 0; i < routePath.length - 1; i++) {
-          routeRoadSet.add(`${routePath[i]}-${routePath[i + 1]}`);
-        }
-      }
-      const isOnRoute = routeRoadSet.has(`${road.from_junction}-${road.to_junction}`);
-      const isOnMultiRoute = multiRoutePaths.some(r => {
-        for (let i = 0; i < r.path.length - 1; i++) {
-          if (`${r.path[i]}-${r.path[i + 1]}` === `${road.from_junction}-${road.to_junction}`) return true;
-        }
-        return false;
-      });
+      const isOnRoute = routeRoadSet.has(road.id);
+      const isOnMultiRoute = multiRouteRoadSets.some((r) => r.set.has(road.id));
       if (isOnRoute || isOnMultiRoute) {
         line.bringToFront();
       }
@@ -1056,6 +1166,10 @@ export function TrafficMap({
   const toggleTurnRestrictions = useCallback(() => {
     setShowTurnRestrictions((prev) => !prev);
   }, []);
+
+  if (routeRenderError) {
+    throw new Error(routeRenderError);
+  }
 
   return (
     <div className="relative h-full w-full">

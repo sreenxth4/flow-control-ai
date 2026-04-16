@@ -9,11 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   MapPin, Route, X, ArrowRight, Loader2, AlertTriangle, Clock,
-  RefreshCw, Zap, Lightbulb,
+  RefreshCw, Zap, Lightbulb, PanelLeft, PanelLeftClose,
 } from "lucide-react";
 import type { RouteResult, DensityLevel, MultiRouteResult } from "@/lib/types";
 import { toast } from "sonner";
 import { TrafficMap } from "@/components/TrafficMap";
+import { BottomSheet } from "@/components/BottomSheet";
 
 // Density colors
 const DENSITY_COLORS: Record<DensityLevel, string> = {
@@ -74,6 +75,7 @@ const UserRoutePage = () => {
   const [routeResult, setRouteResult] = useState<MultiRouteResult | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [routeLocked, setRouteLocked] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [secondsAgo, setSecondsAgo] = useState(0);
 
@@ -112,6 +114,10 @@ const UserRoutePage = () => {
       setLiveCost(null);
       setLastFetchTime(Date.now());
       if (result.routes.length === 0) toast.error("No route found between selected junctions");
+      if (result.routes.some((r) => !r.success)) {
+        const firstError = result.routes.find((r) => !r.success);
+        toast.error(firstError?.message || "Route validation failed on backend");
+      }
     } catch {
       toast.error("Backend route service unavailable");
       setRouteResult(null);
@@ -222,315 +228,341 @@ const UserRoutePage = () => {
     if (!selectedRoute) return undefined;
     return [{
       path: selectedRoute.path,
+      roads: selectedRoute.roads,
       color: getRouteColorByRank(routeResult!.routes)[selectedRouteIndex]
     }];
-  }, [selectedRoute?.path, routeResult?.routes, selectedRouteIndex]);
+  }, [selectedRoute?.path, selectedRoute?.roads, routeResult?.routes, selectedRouteIndex]);
+
+  const selectedSourceJunction = selectedRoute?.path?.[0] || source || null;
+  const selectedDestinationJunction =
+    selectedRoute?.path?.[selectedRoute.path.length - 1] || destination || null;
 
   const memoizedRoadStates = useMemo(
     () => trafficStateData?.road_states || {},
     [trafficStateData?.road_states]
   );
 
-  return (
-    <div className="flex h-full w-full overflow-hidden">
-      {/* Left Sidebar */}
-      <div style={{ width: 380, minWidth: 380, maxWidth: 380 }} className="flex-shrink-0 border-r border-border bg-card z-20 relative">
-        <div className="h-full overflow-y-auto overflow-x-hidden">
-          <div className="space-y-4 p-4" style={{ maxWidth: 348 }}>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Route Finder</h2>
-              <p className="text-xs text-muted-foreground">Find optimal routes through the Kukatpally traffic network</p>
-            </div>
-
-            {/* Source */}
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5 text-xs">
-                <MapPin className="h-3 w-3 text-primary" /> Source Junction
-              </Label>
-              <Select value={source} onValueChange={setSource}>
-                <SelectTrigger><SelectValue placeholder="Select source..." /></SelectTrigger>
-                <SelectContent>
-                  {junctions.map((j) => (
-                    <SelectItem key={j.id} value={j.id} disabled={j.id === destination}>
-                      {j.id} — {j.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Destination */}
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5 text-xs">
-                <MapPin className="h-3 w-3 text-destructive" /> Destination Junction
-              </Label>
-              <Select value={destination} onValueChange={setDestination}>
-                <SelectTrigger><SelectValue placeholder="Select destination..." /></SelectTrigger>
-                <SelectContent>
-                  {junctions.map((j) => (
-                    <SelectItem key={j.id} value={j.id} disabled={j.id === source}>
-                      {j.id} — {j.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-2">
-              <Button onClick={handleFindRoute} disabled={!source || !destination || findRoutesMutation.isPending} className="flex-1">
-                {findRoutesMutation.isPending ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finding...</>
-                ) : (
-                  <><Route className="mr-2 h-4 w-4" /> Find Routes</>
-                )}
-              </Button>
-              {(source || destination || routeResult) && (
-                <Button variant="outline" onClick={handleClear}><X className="h-4 w-4" /></Button>
-              )}
-            </div>
-
-            {/* Refresh / Staleness indicator */}
-            {routeResult && routeResult.routes.length > 0 && (
-              <div className="flex items-center gap-2 text-xs rounded-md bg-muted/50 px-3 py-1.5">
-                <Button
-                  variant="ghost" size="sm"
-                  onClick={handleFindRoute}
-                  disabled={findRoutesMutation.isPending}
-                  className="h-6 px-2 text-xs gap-1"
-                >
-                  <RefreshCw className={`h-3 w-3 ${findRoutesMutation.isPending ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-                <span className="text-muted-foreground">
-                  {secondsAgo < 5 ? 'Just now' : `${secondsAgo}s ago`}
-                </span>
-                {routeLocked && (
-                  <span className="ml-auto text-green-500 text-[10px] font-medium">🔒 Locked</span>
-                )}
-              </div>
-            )}
-
-            {/* Stale data warning */}
-            {routeResult && secondsAgo > 30 && !rerouteSuggestion && (
-              <div className="flex items-center gap-2 text-xs rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
-                <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
-                <span className="text-amber-600 dark:text-amber-400">Traffic data is {secondsAgo}s old — consider refreshing</span>
-              </div>
-            )}
-
-            {/* ⚡ Smart Reroute Suggestion Banner */}
-            {rerouteSuggestion && (
-              <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-2"
-                   style={{ animation: 'pulse 2s ease-in-out infinite', boxShadow: '0 0 12px rgba(16,185,129,0.3)' }}>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                    Faster route available (−{rerouteSuggestion.saving}s)
-                  </span>
-                  <button onClick={() => setRerouteSuggestion(null)} className="ml-auto text-muted-foreground hover:text-foreground">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Traffic conditions changed — a better route was found.
-                </p>
-                <Button size="sm" onClick={handleAcceptReroute}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7">
-                  ⚡ Switch Route
-                </Button>
-              </div>
-            )}
-
-            {/* Route Selection Cards */}
-            {routeResult && routeResult.routes.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Available Routes</Label>
-                <div className="grid gap-2">
-                  {routeResult.routes.map((route, idx) => {
-                    const totalTime = route.total_cost + (route.congestion_delay || 0);
-                    const sigSummary = route.signals_summary || { green: 0, red: 0 };
-                    const isLocked = routeLocked && selectedRouteIndex === idx;
-                    const showLive = isLocked && liveCost !== null && Math.abs(liveCost - totalTime) > 2;
-                    const liveDelta = liveCost !== null ? liveCost - totalTime : 0;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => handleSelectRoute(idx)}
-                        className={`w-full rounded-xl border p-3 text-left transition-all duration-300 overflow-hidden outline-none select-none ${
-                          selectedRouteIndex === idx
-                            ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] z-10 relative"
-                            : "border-border bg-card hover:border-primary/50 hover:bg-muted/50 hover:shadow-sm hover:-translate-y-1"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between w-full min-w-0 gap-2">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <span
-                              className="h-3 w-3 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: getRouteColorByRank(routeResult.routes)[idx] }}
-                            />
-                            <span className="text-sm font-medium truncate">{getRouteLabelByRank(routeResult.routes)[idx]}</span>
-                          </div>
-                          <span className="text-sm font-mono font-bold whitespace-nowrap flex-shrink-0">{formatTime(totalTime)}</span>
-                        </div>
-                        {/* Soft live cost update */}
-                        {showLive && (
-                          <div className="mt-1 flex items-center gap-1.5 text-xs">
-                            <Clock className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground">now</span>
-                            <span className={`font-mono font-bold ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
-                              {formatTime(liveCost!)}
-                            </span>
-                            <span className={`text-[10px] ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
-                              ({liveDelta > 0 ? '+' : ''}{Math.round(liveDelta)}s)
-                            </span>
-                          </div>
-                        )}
-                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          <span className="whitespace-nowrap">🛑 {route.num_junctions} junctions</span>
-                          {route.congestion_delay && route.congestion_delay > 0 && (
-                            <span className="text-amber-600 whitespace-nowrap">⏳ +{Math.round(route.congestion_delay)}s delay</span>
-                          )}
-                        </div>
-                        {/* Signal summary */}
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                          {sigSummary.green > 0 && (
-                            <span className="text-green-600 whitespace-nowrap">🟢 {sigSummary.green} GREEN</span>
-                          )}
-                          {sigSummary.red > 0 && (
-                            <span className="text-red-500 whitespace-nowrap">🔴 {sigSummary.red} RED</span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Recommendation */}
-            {selectedRoute?.recommendation && (
-              <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2 w-full overflow-hidden">
-                <Lightbulb className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-blue-700 dark:text-blue-300 break-words flex-1 min-w-0 leading-relaxed">
-                  {selectedRoute.recommendation}
-                </p>
-              </div>
-            )}
-
-            {/* Delay Breakdown */}
-            {selectedRoute?.delay_reasons && selectedRoute.delay_reasons.length > 0 && (
-              <Card className="border-amber-500/30">
-                <CardHeader className="pb-1">
-                  <CardTitle className="text-xs flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Delay Breakdown
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-xs">
-                  {selectedRoute.delay_reasons.map((dr) => (
-                    <div key={dr.junction_id} className="rounded-md bg-muted/50 p-2">
-                      <div className="flex flex-wrap items-center justify-between mb-1 gap-2">
-                        <span className="font-medium truncate">{dr.junction}</span>
-                        <span className="font-mono font-bold text-amber-600 whitespace-nowrap">+{dr.delay}s</span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                        {dr.signal_delay > 0 && (
-                          <span className="whitespace-nowrap">🚦 Signal: {dr.signal_delay}s</span>
-                        )}
-                        {dr.traffic_delay > 0 && (
-                          <span className="whitespace-nowrap">🚗 Traffic: {dr.traffic_delay}s</span>
-                        )}
-                        {dr.queue_delay > 0 && (
-                          <span className="whitespace-nowrap">📊 Queue: {dr.queue_delay}s</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Segment Details Table */}
-            {selectedRoute && selectedRoute.segments && (
-              <Card>
-                <CardHeader className="pb-1">
-                  <CardTitle className="text-xs">Segment Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-xs">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">From</TableHead>
-                        <TableHead className="text-xs">To</TableHead>
-                        <TableHead className="text-xs">⚡</TableHead>
-                        <TableHead className="text-right text-xs">Time</TableHead>
-                        <TableHead className="text-right text-xs">Delay</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedRoute.segments.map((seg, i) => {
-                        const segDelay = (seg.traffic_delay || 0) + (seg.signal_delay || 0) + (seg.queue_delay || 0) + (seg.congestion_penalty || 0);
-                        return (
-                          <TableRow key={i}>
-                            <TableCell className="text-xs">{getJunctionName(seg.from_junction)}</TableCell>
-                            <TableCell className="text-xs">{getJunctionName(seg.to_junction)}</TableCell>
-                            <TableCell className="text-xs">
-                              {seg.signal_status === "GREEN" ? "🟢" : seg.signal_status === "RED" ? "🔴" : "—"}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs">{seg.cost.toFixed(1)}s</TableCell>
-                            <TableCell className="text-right font-mono text-xs">
-                              {segDelay > 0.5 ? (
-                                <span className={segDelay >= 25 ? "text-red-500" : "text-amber-500"}>
-                                  +{segDelay.toFixed(1)}s
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-
-                  {/* Total with congestion */}
-                  <div className="flex items-center justify-between rounded-md bg-primary/10 p-2">
-                    <div className="flex items-center gap-1 text-sm font-medium">
-                      <Clock className="h-4 w-4" />
-                      Total Travel Time
-                    </div>
-                    <span className="text-lg font-bold">
-                      {formatTime(selectedRoute.total_cost + (selectedRoute.congestion_delay || 0))}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {routeResult && routeResult.routes.length === 0 && (
-              <Card className="border-destructive/50">
-                <CardContent className="p-4">
-                  <p className="text-sm text-destructive">No route found between the selected junctions.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+  // ── Shared sidebar content (desktop sidebar & mobile bottom sheet) ──
+  const sidebarContent = (
+    <div className="space-y-4 p-4" style={{ maxWidth: 380 }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Route Finder</h2>
+          <p className="text-xs text-muted-foreground">Find optimal routes through the Kukatpally traffic network</p>
         </div>
+        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="h-8 w-8 hidden md:inline-flex">
+          <PanelLeftClose className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Right Map */}
-      <div className="flex-1 overflow-hidden relative" style={{ isolation: "isolate" }}>
+      {/* Source */}
+      <div className="space-y-1.5">
+        <Label className="flex items-center gap-1.5 text-xs">
+          <MapPin className="h-3 w-3 text-primary" /> Source Junction
+        </Label>
+        <Select value={source} onValueChange={setSource}>
+          <SelectTrigger><SelectValue placeholder="Select source..." /></SelectTrigger>
+          <SelectContent>
+            {junctions.map((j) => (
+              <SelectItem key={j.id} value={j.id} disabled={j.id === destination}>
+                {j.id} — {j.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Destination */}
+      <div className="space-y-1.5">
+        <Label className="flex items-center gap-1.5 text-xs">
+          <MapPin className="h-3 w-3 text-destructive" /> Destination Junction
+        </Label>
+        <Select value={destination} onValueChange={setDestination}>
+          <SelectTrigger><SelectValue placeholder="Select destination..." /></SelectTrigger>
+          <SelectContent>
+            {junctions.map((j) => (
+              <SelectItem key={j.id} value={j.id} disabled={j.id === source}>
+                {j.id} — {j.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex gap-2">
+        <Button onClick={handleFindRoute} disabled={!source || !destination || findRoutesMutation.isPending} className="flex-1">
+          {findRoutesMutation.isPending ? (
+            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Finding...</>
+          ) : (
+            <><Route className="mr-2 h-4 w-4" /> Find Routes</>
+          )}
+        </Button>
+        {(source || destination || routeResult) && (
+          <Button variant="outline" onClick={handleClear}><X className="h-4 w-4" /></Button>
+        )}
+      </div>
+
+      {/* Refresh / Staleness indicator */}
+      {routeResult && routeResult.routes.length > 0 && (
+        <div className="flex items-center gap-2 text-xs rounded-md bg-muted/50 px-3 py-1.5">
+          <Button
+            variant="ghost" size="sm"
+            onClick={handleFindRoute}
+            disabled={findRoutesMutation.isPending}
+            className="h-6 px-2 text-xs gap-1"
+          >
+            <RefreshCw className={`h-3 w-3 ${findRoutesMutation.isPending ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <span className="text-muted-foreground">
+            {secondsAgo < 5 ? 'Just now' : `${secondsAgo}s ago`}
+          </span>
+          {routeLocked && (
+            <span className="ml-auto text-green-500 text-[10px] font-medium">🔒 Locked</span>
+          )}
+        </div>
+      )}
+
+      {/* Stale data warning */}
+      {routeResult && secondsAgo > 30 && !rerouteSuggestion && (
+        <div className="flex items-center gap-2 text-xs rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
+          <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+          <span className="text-amber-600 dark:text-amber-400">Traffic data is {secondsAgo}s old — consider refreshing</span>
+        </div>
+      )}
+
+      {/* ⚡ Smart Reroute Suggestion Banner */}
+      {rerouteSuggestion && (
+        <div className="rounded-lg border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-2"
+             style={{ animation: 'pulse 2s ease-in-out infinite', boxShadow: '0 0 12px rgba(16,185,129,0.3)' }}>
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-emerald-500" />
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              Faster route available (−{rerouteSuggestion.saving}s)
+            </span>
+            <button onClick={() => setRerouteSuggestion(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Traffic conditions changed — a better route was found.
+          </p>
+          <Button size="sm" onClick={handleAcceptReroute}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7">
+            ⚡ Switch Route
+          </Button>
+        </div>
+      )}
+
+      {/* Route Selection Cards */}
+      {routeResult && routeResult.routes.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">Available Routes</Label>
+          <div className="grid gap-2">
+            {routeResult.routes.map((route, idx) => {
+              const totalTime = route.total_cost + (route.congestion_delay || 0);
+              const sigSummary = route.signals_summary || { green: 0, red: 0 };
+              const isLocked = routeLocked && selectedRouteIndex === idx;
+              const showLive = isLocked && liveCost !== null && Math.abs(liveCost - totalTime) > 2;
+              const liveDelta = liveCost !== null ? liveCost - totalTime : 0;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectRoute(idx)}
+                  className={`w-full rounded-xl border p-3 text-left transition-all duration-300 overflow-hidden outline-none select-none ${
+                    selectedRouteIndex === idx
+                      ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] z-10 relative"
+                      : "border-border bg-card hover:border-primary/50 hover:bg-muted/50 hover:shadow-sm hover:-translate-y-1"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full min-w-0 gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span
+                        className="h-3 w-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: getRouteColorByRank(routeResult.routes)[idx] }}
+                      />
+                      <span className="text-sm font-medium truncate">{getRouteLabelByRank(routeResult.routes)[idx]}</span>
+                    </div>
+                    <span className="text-sm font-mono font-bold whitespace-nowrap flex-shrink-0">{formatTime(totalTime)}</span>
+                  </div>
+                  {showLive && (
+                    <div className="mt-1 flex items-center gap-1.5 text-xs">
+                      <Clock className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">now</span>
+                      <span className={`font-mono font-bold ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                        {formatTime(liveCost!)}
+                      </span>
+                      <span className={`text-[10px] ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                        ({liveDelta > 0 ? '+' : ''}{Math.round(liveDelta)}s)
+                      </span>
+                    </div>
+                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span className="whitespace-nowrap">🛑 {route.num_junctions} junctions</span>
+                    {route.congestion_delay && route.congestion_delay > 0 && (
+                      <span className="text-amber-600 whitespace-nowrap">⏳ +{Math.round(route.congestion_delay)}s delay</span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                    {sigSummary.green > 0 && (
+                      <span className="text-green-600 whitespace-nowrap">🟢 {sigSummary.green} GREEN</span>
+                    )}
+                    {sigSummary.red > 0 && (
+                      <span className="text-red-500 whitespace-nowrap">🔴 {sigSummary.red} RED</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recommendation */}
+      {selectedRoute?.recommendation && (
+        <div className="flex items-start gap-2 rounded-md bg-blue-500/10 border border-blue-500/20 px-3 py-2 w-full overflow-hidden">
+          <Lightbulb className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-blue-700 dark:text-blue-300 break-words flex-1 min-w-0 leading-relaxed">
+            {selectedRoute.recommendation}
+          </p>
+        </div>
+      )}
+
+      {/* Delay Breakdown */}
+      {selectedRoute?.delay_reasons && selectedRoute.delay_reasons.length > 0 && (
+        <Card className="border-amber-500/30">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Delay Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-xs">
+            {selectedRoute.delay_reasons.map((dr) => (
+              <div key={dr.junction_id} className="rounded-md bg-muted/50 p-2">
+                <div className="flex flex-wrap items-center justify-between mb-1 gap-2">
+                  <span className="font-medium truncate">{dr.junction}</span>
+                  <span className="font-mono font-bold text-amber-600 whitespace-nowrap">+{dr.delay}s</span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+                  {dr.signal_delay > 0 && <span className="whitespace-nowrap">🚦 Signal: {dr.signal_delay}s</span>}
+                  {dr.traffic_delay > 0 && <span className="whitespace-nowrap">🚗 Traffic: {dr.traffic_delay}s</span>}
+                  {dr.queue_delay > 0 && <span className="whitespace-nowrap">📊 Queue: {dr.queue_delay}s</span>}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Segment Details Table */}
+      {selectedRoute && selectedRoute.segments && (
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs">Segment Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-xs">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">From</TableHead>
+                  <TableHead className="text-xs">To</TableHead>
+                  <TableHead className="text-xs">⚡</TableHead>
+                  <TableHead className="text-right text-xs">Time</TableHead>
+                  <TableHead className="text-right text-xs">Delay</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedRoute.segments.map((seg, i) => {
+                  const segDelay = (seg.traffic_delay || 0) + (seg.signal_delay || 0) + (seg.queue_delay || 0) + (seg.congestion_penalty || 0);
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="text-xs">{getJunctionName(seg.from_junction)}</TableCell>
+                      <TableCell className="text-xs">{getJunctionName(seg.to_junction)}</TableCell>
+                      <TableCell className="text-xs">
+                        {seg.signal_status === "GREEN" ? "🟢" : seg.signal_status === "RED" ? "🔴" : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">{seg.cost.toFixed(1)}s</TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {segDelay > 0.5 ? (
+                          <span className={segDelay >= 25 ? "text-red-500" : "text-amber-500"}>
+                            +{segDelay.toFixed(1)}s
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+
+            {/* Total with congestion */}
+            <div className="flex items-center justify-between rounded-md bg-primary/10 p-2">
+              <div className="flex items-center gap-1 text-sm font-medium">
+                <Clock className="h-4 w-4" />
+                Total Travel Time
+              </div>
+              <span className="text-lg font-bold">
+                {formatTime(selectedRoute.total_cost + (selectedRoute.congestion_delay || 0))}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {routeResult && routeResult.routes.length === 0 && (
+        <Card className="border-destructive/50">
+          <CardContent className="p-4">
+            <p className="text-sm text-destructive">No route found between the selected junctions.</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col md:flex-row h-full w-full overflow-hidden">
+      {/* ═══ MAP ═══ */}
+      <div className="flex-1 min-h-0 overflow-hidden relative order-1 md:order-2" style={{ isolation: "isolate" }}>
         <TrafficMap
           junctions={safeJunctions}
           roads={roads}
           roadStates={memoizedRoadStates}
           flyTo={null}
           onJunctionClick={noopJunctionClick}
-          sourceJunction={source || null}
-          destinationJunction={destination || null}
+          sourceJunction={selectedSourceJunction}
+          destinationJunction={selectedDestinationJunction}
           multiRoutePaths={memoizedMultiRoutePaths}
         />
       </div>
+
+      {/* ═══ DESKTOP SIDEBAR ═══ */}
+      <div
+        className={`
+          hidden md:block order-2 md:order-1 flex-shrink-0 border-r border-border bg-card transition-all duration-300
+          ${sidebarOpen ? "w-[380px]" : "w-12 overflow-hidden"}
+        `}
+      >
+        {!sidebarOpen ? (
+          <div className="flex h-full w-12 flex-col items-center pt-3 gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">ROUTES</span>
+          </div>
+        ) : (
+          <div className="h-full w-full overflow-y-auto overflow-x-hidden">
+            {sidebarContent}
+          </div>
+        )}
+      </div>
+
+      {/* ═══ MOBILE BOTTOM SHEET ═══ */}
+      <BottomSheet peekLabel="Route Finder" peekIcon="🛣️" defaultSnap="half">
+        {sidebarContent}
+      </BottomSheet>
     </div>
   );
 };

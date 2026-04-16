@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Play, Loader2, Car, Bike, Bus, Truck, ChevronDown, ChevronUp } from "lucide-react";
+import { Upload, Play, Loader2, Car, Bike, Bus, Truck, ChevronDown, ChevronUp, PanelLeft, PanelLeftClose } from "lucide-react";
 import { submitVideoDetection } from "@/lib/api";
 import { useMapData, useTrafficState } from "@/hooks/use-map-data";
 import { DensityBadge } from "@/components/DensityBadge";
 import type { DensityLevel } from "@/lib/types";
 import { toast } from "sonner";
 import { TrafficMap } from "@/components/TrafficMap";
+import { BottomSheet } from "@/components/BottomSheet";
 import "./junction-label.css";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -103,6 +104,7 @@ export function VideoDetectionPanel() {
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [highlightedJunction, setHighlightedJunction] = useState<string | null>(null);
   const [expandedJunction, setExpandedJunction] = useState<string | null>(null);
   const [junctionSignals, setJunctionSignals] = useState<Record<string, any>>({});
@@ -119,6 +121,16 @@ export function VideoDetectionPanel() {
       pcu: 0,
     }))
   );
+
+  // Elapsed processing timer — tick every second while loading
+  useEffect(() => {
+    if (!loading) {
+      setElapsed(0);
+      return;
+    }
+    const iv = setInterval(() => setElapsed((prev) => prev + 1), 1000);
+    return () => clearInterval(iv);
+  }, [loading]);
 
   // Poll junction_signals for live signal data (used by expanded cards)
   useEffect(() => {
@@ -353,14 +365,45 @@ export function VideoDetectionPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Main: left panel + right map */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel */}
-        <div className="flex w-[420px] flex-shrink-0 flex-col overflow-y-auto border-r border-border bg-card p-5 space-y-5">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Upload & Analyze</h2>
-            <p className="text-xs text-muted-foreground">Upload traffic footage for AI vehicle detection</p>
-          </div>
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* ═══ MAP ═══ */}
+        <div className="flex-1 min-h-0 overflow-hidden relative order-1 md:order-2" style={{ isolation: "isolate" }}>
+          <TrafficMap
+            junctions={Array.isArray(mapData?.junctions) ? mapData.junctions : []}
+            roads={Array.isArray(mapData?.roads) ? mapData.roads : []}
+            roadStates={trafficStateData?.road_states || {}}
+            flyTo={null}
+            onJunctionClick={useCallback(() => {}, [])}
+            highlightJunctionId={highlightedJunction || undefined}
+          />
+        </div>
+
+        {/* ═══ DESKTOP SIDEBAR ═══ */}
+        <div
+          className={`
+            hidden md:block order-2 md:order-1 flex-shrink-0 border-r border-border bg-card transition-all duration-300
+            ${sidebarOpen ? "w-[420px]" : "w-12 overflow-hidden"}
+          `}
+        >
+          {!sidebarOpen ? (
+            <div className="flex h-full w-12 flex-col items-center pt-3 gap-3">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">UPLOAD</span>
+            </div>
+          ) : (
+            <div className="flex h-full w-full flex-col overflow-y-auto p-5 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">Upload & Analyze</h2>
+                  <p className="text-xs text-muted-foreground">Upload traffic footage for AI vehicle detection</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="h-8 w-8">
+                  <PanelLeftClose className="h-4 w-4 hidden md:block" />
+                  <X className="h-4 w-4 md:hidden" />
+                </Button>
+              </div>
 
           {/* Junction Select */}
           <div className="space-y-1.5">
@@ -618,19 +661,97 @@ export function VideoDetectionPanel() {
               })}
             </div>
           </div>
+          </div>
+        )}
         </div>
 
-        {/* Right: Map */}
-        <div className="flex-1 overflow-hidden relative" style={{ isolation: "isolate" }}>
-          <TrafficMap
-            junctions={Array.isArray(mapData?.junctions) ? mapData.junctions : []}
-            roads={Array.isArray(mapData?.roads) ? mapData.roads : []}
-            roadStates={trafficStateData?.road_states || {}}
-            flyTo={null}
-            onJunctionClick={useCallback(() => {}, [])}
-            highlightJunctionId={highlightedJunction || undefined}
-          />
-        </div>
+        {/* ═══ MOBILE BOTTOM SHEET ═══ */}
+        <BottomSheet peekLabel="Upload & Analyze" peekIcon="📷" defaultSnap="half">
+          <div className="p-5 space-y-5">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Upload & Analyze</h2>
+              <p className="text-xs text-muted-foreground">Upload traffic footage for AI vehicle detection</p>
+            </div>
+
+            {/* Junction Select */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Junction</Label>
+              <Select value={selectedJunction} onValueChange={handleJunctionChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select junction..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {cameraOptions.map((j) => (
+                    <SelectItem key={j.id} value={j.id}>
+                      {j.id} — {j.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Road Select */}
+            {selectedJunction && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Incoming Road</Label>
+                <Select value={selectedRoad} onValueChange={setSelectedRoad}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select road..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {incomingRoads.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.id} — {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* File Upload */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Video File</Label>
+              <div
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 transition-colors hover:border-primary/50"
+              >
+                <Upload className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Drag & drop or click to select</p>
+                <p className="text-[10px] text-muted-foreground">.mp4 .avi .mov .mkv</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".mp4,.avi,.mov,.mkv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {file && (
+                  <Badge variant="secondary" className="mt-2 text-xs">
+                    {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Submit */}
+            <Button onClick={handleSubmit} disabled={loading || !file || !selectedJunction || !selectedRoad} className="w-full">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing... ({elapsed}s)
+                </>
+              ) : (
+                <>
+                  <Play className="mr-2 h-4 w-4" />
+                  Run Analysis
+                </>
+              )}
+            </Button>
+          </div>
+        </BottomSheet>
       </div>
     </div>
   );

@@ -2,17 +2,17 @@
   "J1": {
     "junction_id": "J1",
     "mode": "pressure",
-    "total_pcu": 6.8,
-    "green_duration": 37,
-    "cycle_time": 120,
-    "total_pressure": 0.0,
+    "total_pcu": 9.1,
+    "green_duration": 27,
+    "cycle_time": 89,
+    "total_pressure": 0.9,
     "phase_timings": {
       "P1_A": {
         "name": "KPHB Corridor",
-        "green_duration": 37,
+        "green_duration": 20,
         "pressure": 0.0,
-        "incoming_pcu": 1.9,
-        "outgoing_pcu": 5.9,
+        "incoming_pcu": 7.5,
+        "outgoing_pcu": 12.5,
         "incoming_roads": [
           "R12"
         ],
@@ -22,10 +22,10 @@
       },
       "P1_B": {
         "name": "NH65 Through",
-        "green_duration": 37,
-        "pressure": 0.0,
-        "incoming_pcu": 4.9,
-        "outgoing_pcu": 5.9,
+        "green_duration": 50,
+        "pressure": 0.9,
+        "incoming_pcu": 1.6,
+        "outgoing_pcu": 0.7,
         "incoming_roads": [
           "R31"
         ],
@@ -35,51 +35,51 @@
       },
       "P1_C": {
         "name": "Bus Depot Direction",
-        "green_duration": 37,
+        "green_duration": 10,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 5.2,
+        "outgoing_pcu": 12.5,
         "incoming_roads": [],
         "outgoing_roads": [
           "R14"
         ]
       }
     },
-    "effective_from": 1776074029.3438585,
-    "next_refresh_at": 1776074119.3438585,
-    "timestamp": 1776074029.3438585,
+    "effective_from": 1776318597.5541308,
+    "next_refresh_at": 1776318687.5541308,
+    "timestamp": 1776318597.5541308,
     "density_level": "LOW",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2502587,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7379673,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
-        "green_duration": 37,
+        "green_duration": 27,
         "density": "LOW",
         "vehicle_count": 0,
-        "total_pcu": 6.8,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 9.1,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 5.0,
-    "signal_wait": 41.5,
+    "signal_wait": 31.0,
     "network_cost_updated": true
   },
   "J2": {
     "junction_id": "J2",
     "mode": "pressure",
-    "total_pcu": 10.8,
+    "total_pcu": 12.9,
     "green_duration": 30,
     "cycle_time": 99,
-    "total_pressure": 4.0,
+    "total_pressure": 5.0,
     "phase_timings": {
       "P2_A": {
         "name": "KPHB Main Corridor",
         "green_duration": 65,
-        "pressure": 4.0,
-        "incoming_pcu": 5.9,
-        "outgoing_pcu": 1.9,
+        "pressure": 5.0,
+        "incoming_pcu": 12.5,
+        "outgoing_pcu": 7.5,
         "incoming_roads": [
           "R11"
         ],
@@ -91,8 +91,8 @@
         "name": "JNTU-Balanagar Cross",
         "green_duration": 15,
         "pressure": 0.0,
-        "incoming_pcu": 4.9,
-        "outgoing_pcu": 20.9,
+        "incoming_pcu": 0.4,
+        "outgoing_pcu": 12.8,
         "incoming_roads": [
           "R32"
         ],
@@ -106,28 +106,28 @@
         "green_duration": 10,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 5.4,
+        "outgoing_pcu": 0.1,
         "incoming_roads": [],
         "outgoing_roads": [
           "R26"
         ]
       }
     },
-    "effective_from": 1776074029.3559964,
-    "next_refresh_at": 1776074119.3559964,
-    "timestamp": 1776074029.3559964,
+    "effective_from": 1776318597.5683405,
+    "next_refresh_at": 1776318687.5683405,
+    "timestamp": 1776318597.5683405,
     "density_level": "MEDIUM",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2540402,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7412193,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
         "green_duration": 30,
         "density": "MEDIUM",
         "vehicle_count": 0,
-        "total_pcu": 10.8,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 12.9,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 15.0,
@@ -137,17 +137,17 @@
   "J3": {
     "junction_id": "J3",
     "mode": "pressure",
-    "total_pcu": 10.7,
-    "green_duration": 27,
-    "cycle_time": 89,
-    "total_pressure": 1.0,
+    "total_pcu": 3.6,
+    "green_duration": 37,
+    "cycle_time": 120,
+    "total_pressure": 0.0,
     "phase_timings": {
       "P3_A": {
         "name": "NH65 Flow",
-        "green_duration": 55,
-        "pressure": 1.0,
-        "incoming_pcu": 5.9,
-        "outgoing_pcu": 4.9,
+        "green_duration": 37,
+        "pressure": 0.0,
+        "incoming_pcu": 0.7,
+        "outgoing_pcu": 1.6,
         "incoming_roads": [
           "R13"
         ],
@@ -157,10 +157,10 @@
       },
       "P3_B": {
         "name": "KPHB-Balanagar Connector",
-        "green_duration": 15,
+        "green_duration": 37,
         "pressure": 0.0,
-        "incoming_pcu": 4.8,
-        "outgoing_pcu": 586.4,
+        "incoming_pcu": 2.9,
+        "outgoing_pcu": 529.1,
         "incoming_roads": [
           "R23"
         ],
@@ -171,51 +171,51 @@
       },
       "P3_C": {
         "name": "North Corridor",
-        "green_duration": 10,
+        "green_duration": 37,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 10.2,
+        "outgoing_pcu": 0.4,
         "incoming_roads": [],
         "outgoing_roads": [
           "R38"
         ]
       }
     },
-    "effective_from": 1776074029.366292,
-    "next_refresh_at": 1776074119.366292,
-    "timestamp": 1776074029.366292,
-    "density_level": "MEDIUM",
+    "effective_from": 1776318597.5863967,
+    "next_refresh_at": 1776318687.5863967,
+    "timestamp": 1776318597.5863967,
+    "density_level": "LOW",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2584386,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7459753,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
-        "green_duration": 27,
-        "density": "MEDIUM",
+        "green_duration": 37,
+        "density": "LOW",
         "vehicle_count": 0,
-        "total_pcu": 10.7,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 3.6,
+        "timestamp": 1776318597.5540848
       }
     },
-    "traffic_delay": 15.0,
-    "signal_wait": 31.0,
+    "traffic_delay": 5.0,
+    "signal_wait": 41.5,
     "network_cost_updated": true
   },
   "J9": {
     "junction_id": "J9",
     "mode": "pressure",
-    "total_pcu": 8.6,
+    "total_pcu": 7.5,
     "green_duration": 32,
     "cycle_time": 71,
-    "total_pressure": 8.3,
+    "total_pressure": 2.4,
     "phase_timings": {
       "P9_A": {
         "name": "Southbound Flow",
         "green_duration": 20,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 1448.0,
+        "outgoing_pcu": 1308.1,
         "incoming_roads": [],
         "outgoing_roads": [
           "R93",
@@ -225,9 +225,9 @@
       "P9_B": {
         "name": "Petbasheerabad-Depot Arrival",
         "green_duration": 45,
-        "pressure": 8.3,
-        "incoming_pcu": 8.6,
-        "outgoing_pcu": 0.3,
+        "pressure": 2.4,
+        "incoming_pcu": 7.5,
+        "outgoing_pcu": 5.1,
         "incoming_roads": [
           "R89",
           "R49"
@@ -237,21 +237,21 @@
         ]
       }
     },
-    "effective_from": 1776074029.3740726,
-    "next_refresh_at": 1776074119.3740726,
-    "timestamp": 1776074029.3740726,
+    "effective_from": 1776318597.599,
+    "next_refresh_at": 1776318687.599,
+    "timestamp": 1776318597.599,
     "density_level": "LOW",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2827876,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7609558,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
         "green_duration": 32,
         "density": "LOW",
         "vehicle_count": 0,
-        "total_pcu": 8.6,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 7.5,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 5.0,
@@ -261,17 +261,17 @@
   "J4": {
     "junction_id": "J4",
     "mode": "pressure",
-    "total_pcu": 11.0,
+    "total_pcu": 12.9,
     "green_duration": 27,
     "cycle_time": 89,
-    "total_pressure": 11.0,
+    "total_pressure": 12.9,
     "phase_timings": {
       "P4_A": {
         "name": "Bus Exit Flow",
         "green_duration": 20,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 1197.9,
+        "outgoing_pcu": 1072.6,
         "incoming_roads": [],
         "outgoing_roads": [
           "R42",
@@ -282,8 +282,8 @@
       "P4_B": {
         "name": "Bus Entry Flow",
         "green_duration": 50,
-        "pressure": 11.0,
-        "incoming_pcu": 11.0,
+        "pressure": 12.9,
+        "incoming_pcu": 12.9,
         "outgoing_pcu": 0,
         "incoming_roads": [
           "R14",
@@ -296,28 +296,28 @@
         "green_duration": 10,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 606.8,
+        "outgoing_pcu": 526.2,
         "incoming_roads": [],
         "outgoing_roads": [
           "R46"
         ]
       }
     },
-    "effective_from": 1776074029.3819497,
-    "next_refresh_at": 1776074119.3819497,
-    "timestamp": 1776074029.3819497,
+    "effective_from": 1776318597.606845,
+    "next_refresh_at": 1776318687.606845,
+    "timestamp": 1776318597.606845,
     "density_level": "MEDIUM",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2657523,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7483826,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
         "green_duration": 27,
         "density": "MEDIUM",
         "vehicle_count": 0,
-        "total_pcu": 11.0,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 12.9,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 15.0,
@@ -327,7 +327,7 @@
   "J7": {
     "junction_id": "J7",
     "mode": "pressure",
-    "total_pcu": 10.6,
+    "total_pcu": 12.8,
     "green_duration": 50,
     "cycle_time": 106,
     "total_pressure": 0.0,
@@ -337,7 +337,7 @@
         "green_duration": 55,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 94.9,
+        "outgoing_pcu": 52.6,
         "incoming_roads": [],
         "outgoing_roads": [
           "R75"
@@ -348,7 +348,7 @@
         "green_duration": 45,
         "pressure": 0.0,
         "incoming_pcu": 0.4,
-        "outgoing_pcu": 9.3,
+        "outgoing_pcu": 10.3,
         "incoming_roads": [
           "R57"
         ],
@@ -357,21 +357,21 @@
         ]
       }
     },
-    "effective_from": 1776074029.3896234,
-    "next_refresh_at": 1776074119.3896234,
-    "timestamp": 1776074029.3896234,
+    "effective_from": 1776318597.6165726,
+    "next_refresh_at": 1776318687.6165726,
+    "timestamp": 1776318597.6165726,
     "density_level": "MEDIUM",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.274936,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7543159,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
         "green_duration": 50,
         "density": "MEDIUM",
         "vehicle_count": 0,
-        "total_pcu": 10.6,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 12.8,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 15.0,
@@ -381,16 +381,16 @@
   "J5": {
     "junction_id": "J5",
     "mode": "pressure",
-    "total_pcu": 111.0,
+    "total_pcu": 62.5,
     "green_duration": 28,
     "cycle_time": 94,
-    "total_pressure": 111.0,
+    "total_pressure": 62.5,
     "phase_timings": {
       "P5_A": {
         "name": "Industrial Inflow",
         "green_duration": 60,
-        "pressure": 111.0,
-        "incoming_pcu": 111.0,
+        "pressure": 62.5,
+        "incoming_pcu": 62.5,
         "outgoing_pcu": 0,
         "incoming_roads": [
           "R25",
@@ -403,7 +403,7 @@
         "green_duration": 15,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 1220.0,
+        "outgoing_pcu": 1092.8,
         "incoming_roads": [],
         "outgoing_roads": [
           "R52",
@@ -416,7 +416,7 @@
         "green_duration": 10,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 631.0,
+        "outgoing_pcu": 542.6,
         "incoming_roads": [],
         "outgoing_roads": [
           "R57",
@@ -424,21 +424,21 @@
         ]
       }
     },
-    "effective_from": 1776074029.3984396,
-    "next_refresh_at": 1776074119.3984396,
-    "timestamp": 1776074029.3984396,
+    "effective_from": 1776318597.630485,
+    "next_refresh_at": 1776318687.630485,
+    "timestamp": 1776318597.630485,
     "density_level": "HIGH",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2685845,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7506502,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
         "green_duration": 28,
         "density": "HIGH",
         "vehicle_count": 0,
-        "total_pcu": 111.0,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 62.5,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 30.0,
@@ -448,17 +448,17 @@
   "J6": {
     "junction_id": "J6",
     "mode": "pressure",
-    "total_pcu": 12.3,
-    "green_duration": 32,
-    "cycle_time": 71,
-    "total_pressure": 3.2,
+    "total_pcu": 14.1,
+    "green_duration": 50,
+    "cycle_time": 106,
+    "total_pressure": 0.0,
     "phase_timings": {
       "P6_A": {
         "name": "Colony Main Flow",
-        "green_duration": 20,
+        "green_duration": 55,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 1605.0,
+        "outgoing_pcu": 1419.2,
         "incoming_roads": [],
         "outgoing_roads": [
           "R62",
@@ -468,9 +468,9 @@
       "P6_B": {
         "name": "Bachupally Link",
         "green_duration": 45,
-        "pressure": 3.2,
-        "incoming_pcu": 5.4,
-        "outgoing_pcu": 2.2,
+        "pressure": 0.0,
+        "incoming_pcu": 0.1,
+        "outgoing_pcu": 0.2,
         "incoming_roads": [
           "R26"
         ],
@@ -479,41 +479,41 @@
         ]
       }
     },
-    "effective_from": 1776074029.4039261,
-    "next_refresh_at": 1776074119.4039261,
-    "timestamp": 1776074029.4039261,
+    "effective_from": 1776318597.639909,
+    "next_refresh_at": 1776318687.639909,
+    "timestamp": 1776318597.639909,
     "density_level": "MEDIUM",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2717154,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.7524276,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
-        "green_duration": 32,
+        "green_duration": 50,
         "density": "MEDIUM",
         "vehicle_count": 0,
-        "total_pcu": 12.3,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 14.1,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 15.0,
-    "signal_wait": 19.5,
+    "signal_wait": 28.0,
     "network_cost_updated": true
   },
   "J10": {
     "junction_id": "J10",
     "mode": "pressure",
-    "total_pcu": 11.5,
-    "green_duration": 35,
-    "cycle_time": 76,
-    "total_pressure": 1.3,
+    "total_pcu": 10.5,
+    "green_duration": 52,
+    "cycle_time": 111,
+    "total_pressure": 0.0,
     "phase_timings": {
       "P10_A": {
         "name": "Allwyn Direction",
-        "green_duration": 20,
+        "green_duration": 55,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 6.9,
+        "outgoing_pcu": 14.0,
         "incoming_roads": [],
         "outgoing_roads": [
           "R106"
@@ -522,9 +522,9 @@
       "P10_B": {
         "name": "Moosapet-ORR Direction",
         "green_duration": 50,
-        "pressure": 1.3,
-        "incoming_pcu": 11.5,
-        "outgoing_pcu": 10.2,
+        "pressure": 0.0,
+        "incoming_pcu": 10.5,
+        "outgoing_pcu": 12.4,
         "incoming_roads": [
           "R610",
           "R710"
@@ -534,41 +534,41 @@
         ]
       }
     },
-    "effective_from": 1776074029.408669,
-    "next_refresh_at": 1776074119.408669,
-    "timestamp": 1776074029.408669,
+    "effective_from": 1776318597.6693587,
+    "next_refresh_at": 1776318687.6693587,
+    "timestamp": 1776318597.6693587,
     "density_level": "MEDIUM",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.285427,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.76336,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
-        "green_duration": 35,
+        "green_duration": 52,
         "density": "MEDIUM",
         "vehicle_count": 0,
-        "total_pcu": 11.5,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 10.5,
+        "timestamp": 1776318597.5540848
       }
     },
     "traffic_delay": 15.0,
-    "signal_wait": 20.5,
+    "signal_wait": 29.5,
     "network_cost_updated": true
   },
   "J8": {
     "junction_id": "J8",
     "mode": "pressure",
-    "total_pcu": 10.5,
-    "green_duration": 32,
-    "cycle_time": 71,
-    "total_pressure": 9.9,
+    "total_pcu": 5.5,
+    "green_duration": 48,
+    "cycle_time": 101,
+    "total_pressure": 0.0,
     "phase_timings": {
       "P8_A": {
         "name": "Southbound Flow",
-        "green_duration": 20,
+        "green_duration": 50,
         "pressure": 0.0,
         "incoming_pcu": 0,
-        "outgoing_pcu": 1433.0,
+        "outgoing_pcu": 1313.4,
         "incoming_roads": [],
         "outgoing_roads": [
           "R83",
@@ -578,9 +578,9 @@
       "P8_B": {
         "name": "Pragathi Nagar Flow",
         "green_duration": 45,
-        "pressure": 9.9,
-        "incoming_pcu": 10.2,
-        "outgoing_pcu": 0.3,
+        "pressure": 0.0,
+        "incoming_pcu": 0.4,
+        "outgoing_pcu": 7.3,
         "incoming_roads": [
           "R38"
         ],
@@ -589,25 +589,25 @@
         ]
       }
     },
-    "effective_from": 1776074029.4160917,
-    "next_refresh_at": 1776074119.4160917,
-    "timestamp": 1776074029.4160917,
-    "density_level": "MEDIUM",
+    "effective_from": 1776318597.6938524,
+    "next_refresh_at": 1776318687.6938524,
+    "timestamp": 1776318597.6938524,
+    "density_level": "LOW",
     "vehicle_count": 0,
-    "updated_at": 1776074029.3437402,
-    "source_updated_at": 1776074025.2798915,
+    "updated_at": 1776318597.5540848,
+    "source_updated_at": 1776318596.756616,
     "interval_seconds": 90,
     "signal_timings": {
       "lane_0": {
-        "green_duration": 32,
-        "density": "MEDIUM",
+        "green_duration": 48,
+        "density": "LOW",
         "vehicle_count": 0,
-        "total_pcu": 10.5,
-        "timestamp": 1776074029.3437402
+        "total_pcu": 5.5,
+        "timestamp": 1776318597.5540848
       }
     },
-    "traffic_delay": 15.0,
-    "signal_wait": 19.5,
+    "traffic_delay": 5.0,
+    "signal_wait": 26.5,
     "network_cost_updated": true
   }
 }

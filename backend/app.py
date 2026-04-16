@@ -452,20 +452,105 @@ def _take_traffic_snapshot() -> dict:
     return {"roads": road_states, "signals": signals}
 
 
+def _resolve_path_roads(path: list[str]) -> dict:
+    """Resolve a junction path into directed road IDs and validation metadata."""
+    roads: list[str] = []
+    invalid_hops: list[dict] = []
+    missing_road_ids: list[dict] = []
+
+    if len(path) <= 1:
+        return {
+            "roads": roads,
+            "invalid_hops": invalid_hops,
+            "missing_road_ids": missing_road_ids,
+            "adjacency_ok": True,
+            "mapping_ok": True,
+        }
+
+    for i in range(len(path) - 1):
+        from_j = str(path[i])
+        to_j = str(path[i + 1])
+        neighbors = set(road_network.get_neighbors(from_j))
+
+        if to_j not in neighbors:
+            invalid_hops.append({"index": i, "from": from_j, "to": to_j})
+            continue
+
+        road_meta = road_network.get_edge_road(from_j, to_j) or {}
+        road_id = road_meta.get("road_id")
+        if not road_id:
+            missing_road_ids.append({"index": i, "from": from_j, "to": to_j})
+            continue
+        roads.append(str(road_id))
+
+    return {
+        "roads": roads,
+        "invalid_hops": invalid_hops,
+        "missing_road_ids": missing_road_ids,
+        "adjacency_ok": len(invalid_hops) == 0,
+        "mapping_ok": len(missing_road_ids) == 0,
+    }
+
+
 def _route_to_frontend_shape(route_payload: dict, rank: int | None = None,
                               snapshot: dict | None = None,
                               all_routes: list | None = None) -> dict:
     """Normalize route payload to the frontend RouteResult shape with full breakdown."""
     if not isinstance(route_payload, dict) or not route_payload.get("success"):
         return {
-            "success": False, "path": [], "segments": [], "total_cost": 0,
+            "success": False, "path": [], "roads": [], "segments": [], "total_cost": 0,
             "num_junctions": 0, "congestion_delay": 0, "congested_junctions": [],
             "delay_reasons": [], "signals_summary": {"green": 0, "red": 0},
             "recommendation": "", "rank": rank,
+            "route_validation": {
+                "adjacency_ok": False,
+                "mapping_ok": False,
+                "invalid_hops": [],
+                "missing_road_ids": [],
+            },
         }
 
     path = route_payload.get("path", []) or []
+    path = [str(p) for p in path]
+    resolver = _resolve_path_roads(path)
+    if not resolver["adjacency_ok"] or not resolver["mapping_ok"]:
+        return {
+            "success": False,
+            "message": "Route validation failed: invalid hop or missing road mapping",
+            "path": path,
+            "roads": resolver["roads"],
+            "segments": [],
+            "total_cost": 0,
+            "num_junctions": len(path),
+            "congestion_delay": 0,
+            "congested_junctions": [],
+            "delay_reasons": [],
+            "signals_summary": {"green": 0, "red": 0},
+            "recommendation": "",
+            "rank": rank,
+            "route_validation": {
+                "adjacency_ok": resolver["adjacency_ok"],
+                "mapping_ok": resolver["mapping_ok"],
+                "invalid_hops": resolver["invalid_hops"],
+                "missing_road_ids": resolver["missing_road_ids"],
+            },
+        }
+
+    raw_roads = route_payload.get("roads", []) or []
+    roads = [str(r) for r in raw_roads if r]
+    if len(roads) != max(0, len(path) - 1):
+        roads = resolver["roads"]
+
     raw_segments = route_payload.get("segments", []) or []
+    if not raw_segments and len(path) > 1:
+        raw_segments = [
+            {
+                "from_junction": path[i],
+                "to_junction": path[i + 1],
+                "road_id": roads[i] if i < len(roads) else None,
+            }
+            for i in range(len(path) - 1)
+        ]
 
     segments = []
     total_traffic_delay = 0.0
@@ -489,6 +574,7 @@ def _route_to_frontend_shape(route_payload: dict, rank: int | None = None,
         if breakdown:
             seg_entry = {
                 "from_junction": str(from_j), "to_junction": str(to_j),
+                "road_id": seg.get("road_id"),
                 "road_name": breakdown.get("road_name") or seg.get("road_name") or "Unknown Road",
                 "cost": round(breakdown["total"], 1),
                 "base_time": breakdown["base_time"],
@@ -519,6 +605,7 @@ def _route_to_frontend_shape(route_payload: dict, rank: int | None = None,
         else:
             seg_entry = {
                 "from_junction": str(from_j), "to_junction": str(to_j),
+                "road_id": seg.get("road_id"),
                 "road_name": seg.get("road_name") or seg.get("road_id") or "Unknown Road",
                 "cost": round(float(seg.get("cost", 0)), 1),
             }
@@ -550,7 +637,7 @@ def _route_to_frontend_shape(route_payload: dict, rank: int | None = None,
     )
 
     return {
-        "success": True, "path": path, "segments": segments,
+        "success": True, "path": path, "roads": roads, "segments": segments,
         "total_cost": round(total_cost, 1),
         "num_junctions": int(route_payload.get("num_junctions", len(path))),
         "congestion_delay": total_delay,
@@ -563,6 +650,12 @@ def _route_to_frontend_shape(route_payload: dict, rank: int | None = None,
         "signals_summary": {"green": green_count, "red": red_count},
         "recommendation": recommendation,
         "rank": rank,
+        "route_validation": {
+            "adjacency_ok": True,
+            "mapping_ok": True,
+            "invalid_hops": [],
+            "missing_road_ids": [],
+        },
     }
 
 
@@ -647,7 +740,12 @@ def _find_k_shortest_simple_routes(source: str, destination: str,
             continue
         seen.add(path_key)
 
-        unique_routes.append(route_optimizer.get_route_details(path, total_cost))
+        unique_routes.append(route_optimizer.get_route_details(
+            path,
+            total_cost,
+            snapshot=snapshot,
+            use_live_cost=use_live,
+        ))
         path_edges = [(path[i], path[i + 1]) for i in range(len(path) - 1)]
         for e in path_edges:
             used_edges.add(e)
@@ -1102,8 +1200,14 @@ def create_app():
         if not source or not destination:
             return jsonify({"success": False, "message": "Provide source and destination junction IDs"}), 400
 
-        result = route_optimizer.find_optimal_route(str(source), str(destination))
-        return jsonify(_route_to_frontend_shape(result, rank=1))
+        snapshot = _take_traffic_snapshot()
+        result = route_optimizer.find_optimal_route(
+            str(source),
+            str(destination),
+            snapshot=snapshot,
+            use_live_cost=True,
+        )
+        return jsonify(_route_to_frontend_shape(result, rank=1, snapshot=snapshot))
 
     @app.route("/api/get_routes", methods=["POST", "OPTIONS"])
     def get_routes():
