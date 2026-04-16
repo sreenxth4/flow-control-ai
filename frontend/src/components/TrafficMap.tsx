@@ -231,10 +231,23 @@ export function TrafficMap({
   const [showTurnRestrictions, setShowTurnRestrictions] = useState(true);
   const [routeRenderError, setRouteRenderError] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
 
   // Internal state: junction signal data from polling + map region metadata
   const [signalData, setSignalData] = useState<Record<string, JunctionSignalData>>({});
   const [mapRegion, setMapRegion] = useState<any>(null);
+
+  const invalidateMapSize = useCallback(() => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !container || container.offsetParent === null) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      map.invalidateSize({ animate: false });
+    });
+  }, []);
 
   // ── Fetch map region metadata once (provides incoming_roads / outgoing_roads) ──
   useEffect(() => {
@@ -286,15 +299,16 @@ export function TrafficMap({
     // Create a custom pane for signal dots so they render ABOVE junction markers
     if (!map.getPane("signalPane")) {
       const pane = map.createPane("signalPane");
-      pane.style.zIndex = "650"; // above markers (default 600)
+      const markerZ = getComputedStyle(document.documentElement)
+        .getPropertyValue("--z-map-markers")
+        .trim();
+      pane.style.zIndex = markerZ || "650"; // above markers (default 600)
       pane.style.pointerEvents = "auto";
     }
 
     // Force size invalidation after initial render (common Leaflet fix for mobile)
     setTimeout(() => {
-      if (mapRef.current) {
-        mapRef.current.invalidateSize();
-      }
+      invalidateMapSize();
     }, 100);
 
     return () => {
@@ -302,27 +316,86 @@ export function TrafficMap({
       mapRef.current = null;
       layersRef.current = null;
     };
-  }, []);
+  }, [invalidateMapSize]);
 
   // ── Resize observer: fix Leaflet grey tiles when container resizes ──
   useEffect(() => {
     const container = containerRef.current;
     const map = mapRef.current;
     if (!container || !map) return;
+    
+    let resizeTimer: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver(() => {
-      setTimeout(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
         try {
-          if (mapRef.current && containerRef.current && containerRef.current.offsetParent !== null) {
-            mapRef.current.invalidateSize({ animate: false });
-          }
+          invalidateMapSize();
         } catch {
           // Map may have been removed — ignore
         }
-      }, 50);
+      }, 60); // Keep map in sync during viewport and sheet transitions.
     });
     ro.observe(container);
-    return () => ro.disconnect();
-  });
+    return () => {
+      clearTimeout(resizeTimer);
+      ro.disconnect();
+    };
+  }, [invalidateMapSize]); // VERY IMPORTANT: keep dependency array so it only runs on mount
+
+  // ── Explicit map resize triggers for mobile viewport + bottom-sheet lifecycle ──
+  useEffect(() => {
+    const onViewportChange = () => invalidateMapSize();
+    const onSheetSnap = () => invalidateMapSize();
+    const onSheetDrag = (event: Event) => {
+      const active = Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active);
+      setIsSheetDragging(active);
+      if (!active) {
+        invalidateMapSize();
+      }
+    };
+
+    const vv = window.visualViewport;
+    window.addEventListener("resize", onViewportChange, { passive: true });
+    window.addEventListener("orientationchange", onViewportChange, { passive: true });
+    window.addEventListener("traffic:sheet-snap", onSheetSnap as EventListener);
+    window.addEventListener("traffic:sheet-drag", onSheetDrag as EventListener);
+    if (vv) {
+      vv.addEventListener("resize", onViewportChange, { passive: true });
+      vv.addEventListener("scroll", onViewportChange, { passive: true });
+    }
+
+    return () => {
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("orientationchange", onViewportChange);
+      window.removeEventListener("traffic:sheet-snap", onSheetSnap as EventListener);
+      window.removeEventListener("traffic:sheet-drag", onSheetDrag as EventListener);
+      if (vv) {
+        vv.removeEventListener("resize", onViewportChange);
+        vv.removeEventListener("scroll", onViewportChange);
+      }
+    };
+  }, [invalidateMapSize]);
+
+  // ── Gesture arbitration: lock map pan/zoom while sheet drag is active ──
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (isSheetDragging) {
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+      return;
+    }
+
+    map.dragging.enable();
+    map.touchZoom.enable();
+    map.doubleClickZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+  }, [isSheetDragging]);
 
   // ══════════════════════════════════════════════════════════════════════════
   // MAIN RENDERING EFFECT
@@ -672,14 +745,7 @@ export function TrafficMap({
 
         const restrictionIcon = L.divIcon({
           className: "turn-restriction",
-          html: `<div style="
-            font-size: 11px;
-            background: rgba(255,255,255,0.85);
-            padding: 1px 3px;
-            border-radius: 3px;
-            border: 1px solid #d1d5db;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-          ">${icon}</div>`,
+          html: `<div class="turn-restriction-badge">${icon}</div>`,
           iconSize: [22, 22],
           iconAnchor: [11, 11],
         });
@@ -889,7 +955,7 @@ export function TrafficMap({
           pane: "signalPane",
         });
 
-        const tooltipHtml = `<div style="font-size:12px;">
+        const tooltipHtml = `<div class="map-tooltip">
             <strong>${rId}</strong> — ${road?.name || "Unknown"}<br/>
             Junction: ${jName}<br/>
             PCU: —<br/>
@@ -988,13 +1054,13 @@ export function TrafficMap({
 
         const road = roadMap.get(rId);
         const signalEmoji = roadSignal === "GREEN" ? "🟢" : "🔴";
-        const tooltipHtml = `<div style="font-size:12px;">
+        const tooltipHtml = `<div class="map-tooltip">
             <strong>${rId}</strong> — ${road?.name || "Unknown"}<br/>
             Junction: ${jName}<br/>
             Signal: ${signalEmoji} ${roadSignal}<br/>
             PCU: ${roadPcu}<br/>
             Density: ${roadDensity || "N/A"}<br/>
-            <span style="color:#aaa;font-size:10px;">Source: ${roadSource}</span>
+          <span class="map-tooltip-meta">Source: ${roadSource}</span>
           </div>`;
 
         dot.unbindTooltip();
@@ -1060,8 +1126,8 @@ export function TrafficMap({
           <hr class="my-2 border-border"/>
           <div class="bg-primary/10 border border-primary/20 p-2.5 rounded-md mt-2 shadow-sm">
             <div class="text-[12px] font-bold text-primary flex items-center gap-1.5">🚦 Adaptive Signal</div>
-            <div id="active-green-${jId}" class="text-[11px] mt-1.5 text-foreground">🟢 <strong>${activeGreenName}</strong> — ${greenDuration}s green</div>
-            <div id="${popupId}" data-time="${Date.now()}" data-initial-time="${timeRemaining}" class="text-[11px] mt-0.5 text-muted-foreground font-medium">Re-evaluates in: <span class="font-mono">${timeRemaining}s</span></div>
+            <div id="active-green-${jId}" class="text-micro mt-1.5 text-foreground">🟢 <strong>${activeGreenName}</strong> — ${greenDuration}s green</div>
+            <div id="${popupId}" data-time="${Date.now()}" data-initial-time="${timeRemaining}" class="text-micro mt-0.5 text-muted-foreground font-medium">Re-evaluates in: <span class="font-mono">${timeRemaining}s</span></div>
           </div>
         </div>`;
 
@@ -1124,9 +1190,9 @@ export function TrafficMap({
 
       line.setStyle({ color: lineColor, weight: lineWeight, opacity: lineOpacity });
       line.setTooltipContent(
-        `<div style="min-width:140px;">
+        `<div class="map-tooltip" style="min-width:140px;">
           <strong>${road.name}</strong>
-          <span style="color:#aaa; font-size: 11px;">${road.from_junction} → ${road.to_junction}</span><br/><br/>
+          <span class="map-tooltip-meta">${road.from_junction} → ${road.to_junction}</span><br/><br/>
           <span style="display:inline-block; width:50%;">📏 ${lengthM}m</span> <span style="display:inline-block; width:45%;">🚗 ${speed} km/h</span><br/>
           <span style="display:inline-block; width:50%;">🛣️ ${road.lanes}L</span> <span style="display:inline-block; width:45%;">⏱️ ${baseCost}s</span><br/>
           <span style="display:inline-block; width:50%;">🚦 ${roadDensity || "—"}</span> <span style="display:inline-block; width:45%;">📊 PCU: ${pcuLabel}</span>
@@ -1194,8 +1260,13 @@ export function TrafficMap({
       {/* ── Adaptive Signal Legend ── */}
       {/* Desktop: bottom-left, always expanded */}
       <div 
-        className="hidden md:block absolute bottom-6 left-4 z-[500] pointer-events-auto min-w-[170px] bg-card/95 text-card-foreground border border-border rounded-xl shadow-lg p-3 backdrop-blur-sm"
-        style={{ transform: "translateZ(0)" }}
+        className="hidden md:block absolute bottom-6 left-4 pointer-events-auto min-w-[170px] bg-card/95 text-card-foreground border border-border rounded-xl shadow-lg p-3 backdrop-blur-sm"
+        style={{
+          transform: "translateZ(0)",
+          zIndex: "var(--z-map-overlays)",
+          bottom: "calc(var(--safe-area-inset-bottom) + 1.5rem)",
+          left: "calc(var(--safe-area-inset-left) + 1rem)",
+        }}
       >
         <div className="font-bold text-[13px] mb-1.5 flex items-center gap-1.5 text-foreground">🚦 SIGNAL CONTROL</div>
         <div className="flex items-center gap-2 mb-1">
@@ -1206,40 +1277,45 @@ export function TrafficMap({
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500" />
           <span className="text-sm font-medium text-foreground">Waiting (RED)</span>
         </div>
-        <div className="text-[10px] text-muted-foreground mt-2 font-medium">Adaptive timing: 15–45s</div>
-        <div className="text-[10px] text-muted-foreground font-medium">Click junction for live countdown</div>
+        <div className="text-micro text-muted-foreground mt-2 font-medium">Adaptive timing: 15–45s</div>
+        <div className="text-micro text-muted-foreground font-medium">Click junction for live countdown</div>
       </div>
 
       {/* Mobile: top-left (below header), compact + collapsible */}
       <div 
-        className="md:hidden absolute top-2 left-2 z-[500] pointer-events-auto"
-        style={{ transform: "translateZ(0)" }}
+        className="md:hidden absolute top-2 left-2 pointer-events-auto"
+        style={{
+          transform: "translateZ(0)",
+          zIndex: "var(--z-map-overlays)",
+          top: "calc(var(--safe-area-inset-top) + 0.5rem)",
+          left: "calc(var(--safe-area-inset-left) + 0.5rem)",
+        }}
       >
         <button
           onClick={() => setLegendOpen(prev => !prev)}
-          className="flex items-center gap-1.5 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg px-2.5 py-1.5 text-[11px] font-semibold"
+          className="flex items-center gap-1.5 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg px-2.5 py-1.5 text-micro font-semibold"
         >
           🚦
           {legendOpen && (
             <span className="flex items-center gap-2">
               <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-[10px]">Green</span>
+              <span className="text-micro">Green</span>
               <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-[10px]">Red</span>
+              <span className="text-micro">Red</span>
             </span>
           )}
           {!legendOpen && <span>Traffic Signals</span>}
         </button>
         {legendOpen && (
           <div className="mt-1 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg p-2.5 min-w-[155px]">
-            <div className="font-bold text-[11px] mb-1 text-foreground">SIGNAL CONTROL</div>
+            <div className="font-bold text-micro mb-1 text-foreground">SIGNAL CONTROL</div>
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-[11px] font-medium text-foreground">Active Green</span>
+              <span className="text-micro font-medium text-foreground">Active Green</span>
             </div>
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-[11px] font-medium text-foreground">Waiting (RED)</span>
+              <span className="text-micro font-medium text-foreground">Waiting (RED)</span>
             </div>
             <div className="text-[9px] text-muted-foreground mt-1 font-medium">Adaptive timing: 15–45s</div>
           </div>

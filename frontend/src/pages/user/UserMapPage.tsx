@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useMapData, useTrafficState } from "@/hooks/use-map-data";
 import { Badge } from "@/components/ui/badge";
 import { DensityBadge } from "@/components/DensityBadge";
-import { ChevronDown, ChevronUp, PanelLeft, PanelLeftClose, X } from "lucide-react";
+import { ChevronDown, ChevronUp, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DensityLevel } from "@/lib/types";
 import { TrafficMap } from "@/components/TrafficMap";
@@ -10,6 +10,7 @@ import { BottomSheet } from "@/components/BottomSheet";
 import "@/components/junction-label.css";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000";
+const SIDEBAR_STORAGE_KEY = "user-map-sidebar-open";
 
 // Junction camera options — Kukatpally Zone
 const JUNCTION_CAMERAS = [
@@ -49,7 +50,12 @@ const UserMapPage = () => {
 
   const [highlightedJunction, setHighlightedJunction] = useState<string | null>(null);
   const [expandedJunction, setExpandedJunction] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (saved !== null) return saved === "true";
+    return window.innerWidth >= 768;
+  });
   const [junctionSignals, setJunctionSignals] = useState<Record<string, any>>({});
   const [lastFetch, setLastFetch] = useState<number>(Date.now());
   const [now, setNow] = useState<number>(Date.now());
@@ -87,6 +93,25 @@ const UserMapPage = () => {
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarOpen));
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize, { passive: true });
+    window.addEventListener("orientationchange", handleResize, { passive: true });
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
   }, []);
 
   const mapJunctions = useMemo(
@@ -174,7 +199,7 @@ const UserMapPage = () => {
           return (
             <div
               key={s.junctionId}
-              className={`rounded-lg border transition-all duration-300 cursor-pointer text-[11px] outline-none select-none ${
+              className={`rounded-lg border transition-all duration-300 cursor-pointer text-micro outline-none select-none ${
                 isExpanded
                   ? "col-span-2 border-primary bg-primary/5 shadow-md shadow-primary/10 ring-1 ring-primary/20 scale-[1.02] z-10 relative"
                   : "border-border bg-card hover:border-primary/50 hover:bg-muted/50 hover:shadow-sm hover:-translate-y-1"
@@ -188,7 +213,7 @@ const UserMapPage = () => {
               <div className="flex items-center justify-between p-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="font-medium text-foreground truncate">{s.name}</span>
-                  {s.density ? <DensityBadge level={s.density} /> : <Badge variant="outline" className="text-[10px] px-1.5 py-0">Pending</Badge>}
+                  {s.density ? <DensityBadge level={s.density} /> : <Badge variant="outline" className="text-micro px-1.5 py-0">Pending</Badge>}
                 </div>
                 {isExpanded
                   ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
@@ -218,18 +243,19 @@ const UserMapPage = () => {
                   <div className="flex items-center justify-between rounded-md px-2.5 py-2" style={{ background: "rgba(34,197,94,0.08)" }}>
                     <div>
                       <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#16a34a" }}>🚦 Active Signal</div>
-                      <div className="text-[11px] mt-0.5">🟢 <strong>{activeRoadName}</strong> — {greenDuration}s green</div>
+                      <div className="text-xs mt-0.5">🟢 <strong>{activeRoadName}</strong> — {greenDuration}s green</div>
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold tabular-nums" style={{ color: timeRemaining > 5 ? "#16a34a" : "#ef4444" }}>{timeRemaining}s</div>
-                      <div className="text-[10px] text-muted-foreground">remaining</div>
+                      <div className="text-micro text-muted-foreground">remaining</div>
                     </div>
                   </div>
 
                   {/* Incoming Roads Table */}
                   <div>
-                    <div className="text-[10px] font-semibold text-muted-foreground mb-1">INCOMING ROADS</div>
-                    <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
+                    <div className="text-micro font-semibold text-muted-foreground mb-1">INCOMING ROADS</div>
+                    <div className="overflow-x-auto">
+                    <table className="w-full min-w-[460px] text-xs" style={{ borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ background: "hsl(var(--muted))" }}>
                           <th className="text-left px-1.5 py-1 font-medium">⚡</th>
@@ -282,11 +308,12 @@ const UserMapPage = () => {
                         )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
 
                   {/* Insight */}
                   {activeGreen && (
-                    <p className="text-[10px] text-muted-foreground italic">
+                    <p className="text-micro text-muted-foreground italic">
                       💡 {activeRoadName} has the highest pressure score → selected for GREEN
                     </p>
                   )}
@@ -317,7 +344,7 @@ const UserMapPage = () => {
       <div
         className={`
           hidden md:block order-2 md:order-1 flex-shrink-0 border-r border-border bg-card transition-all duration-300
-          ${sidebarOpen ? "w-[340px]" : "w-12 overflow-hidden"}
+          ${sidebarOpen ? "w-[min(340px,42vw)]" : "w-12 overflow-hidden"}
         `}
       >
         {!sidebarOpen ? (
@@ -325,7 +352,7 @@ const UserMapPage = () => {
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
               <PanelLeft className="h-4 w-4" />
             </Button>
-            <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">JUNCTIONS</span>
+            <span className="text-micro text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">JUNCTIONS</span>
           </div>
         ) : (
           <div className="h-full w-full overflow-y-auto overflow-x-hidden">

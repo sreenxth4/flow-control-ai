@@ -1,20 +1,38 @@
 import { useRef, useState, useCallback, useEffect, type ReactNode } from "react";
 
-// ─── Snap positions (percentage of viewport height) ───
-const SNAP_COLLAPSED = 7;   // ~60px peek
-const SNAP_HALF = 50;       // half screen
-const SNAP_FULL = 85;       // near full screen
-const SNAPS = [SNAP_COLLAPSED, SNAP_HALF, SNAP_FULL];
+const COLLAPSED_PEEK_PX = 72;
+const HEADER_HEIGHT_PX = 44;
 
 // Minimum px moved before we decide: "this is a drag, not a tap"
 const DRAG_THRESHOLD = 8;
 
-type SnapPosition = "collapsed" | "half" | "full";
-const SNAP_MAP: Record<SnapPosition, number> = {
-  collapsed: SNAP_COLLAPSED,
-  half: SNAP_HALF,
-  full: SNAP_FULL,
+interface SnapMetrics {
+  collapsed: number;
+  half: number;
+  full: number;
+}
+
+const getViewportHeight = () => {
+  if (typeof window === "undefined") {
+    return 800;
+  }
+  return window.visualViewport?.height ?? window.innerHeight;
 };
+
+const calculateSnaps = (): SnapMetrics => {
+  const vh = Math.max(getViewportHeight(), 1);
+  const collapsed = Math.min(16, Math.max(9, (COLLAPSED_PEEK_PX / vh) * 100));
+  const half = 50;
+  const fullByHeader = ((vh - HEADER_HEIGHT_PX) / vh) * 100;
+  const full = Math.min(92, Math.max(72, fullByHeader));
+  return { collapsed, half, full };
+};
+
+const emitSheetEvent = (name: string, detail: Record<string, unknown>) => {
+  window.dispatchEvent(new CustomEvent(name, { detail }));
+};
+
+type SnapPosition = "collapsed" | "half" | "full";
 
 interface BottomSheetProps {
   children: ReactNode;
@@ -31,7 +49,8 @@ export function BottomSheet({
   defaultSnap = "collapsed",
   onSnapChange,
 }: BottomSheetProps) {
-  const [snapVh, setSnapVh] = useState(SNAP_MAP[defaultSnap]);
+  const [snapMetrics, setSnapMetrics] = useState<SnapMetrics>(() => calculateSnaps());
+  const [snapVh, setSnapVh] = useState(() => calculateSnaps()[defaultSnap]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -44,42 +63,75 @@ export function BottomSheet({
   const lastY = useRef(0);
   const lastTime = useRef(0);
   const velocity = useRef(0);           // px/ms for flick detection
+  const dragSignalActive = useRef(false);
 
   // Force re-render only when we commit to dragging
-  const [, forceRender] = useState(0);
 
   // ── Helpers ──
-  const getSnapName = (vh: number): SnapPosition => {
-    if (vh <= SNAP_COLLAPSED + 5) return "collapsed";
-    if (vh >= SNAP_FULL - 5) return "full";
+  const getSnapName = (vh: number, metrics: SnapMetrics): SnapPosition => {
+    const halfPointLow = (metrics.collapsed + metrics.half) / 2;
+    const halfPointHigh = (metrics.half + metrics.full) / 2;
+    if (vh <= halfPointLow) return "collapsed";
+    if (vh >= halfPointHigh) return "full";
     return "half";
   };
 
-  const resolveSnap = useCallback((vh: number, vel: number): number => {
+  const resolveSnap = useCallback((vh: number, vel: number, metrics: SnapMetrics): number => {
+    const snapList = [metrics.collapsed, metrics.half, metrics.full];
     // Velocity-aware snapping: flick up → next higher snap, flick down → next lower
     const flickThreshold = 0.4; // px/ms
     if (vel > flickThreshold) {
       // Flicking UP → go to next snap above current
-      for (const s of SNAPS) {
+      for (const s of snapList) {
         if (s > vh + 3) return s;
       }
-      return SNAP_FULL;
+      return metrics.full;
     }
     if (vel < -flickThreshold) {
       // Flicking DOWN → go to next snap below current
-      for (let i = SNAPS.length - 1; i >= 0; i--) {
-        if (SNAPS[i] < vh - 3) return SNAPS[i];
+      for (let i = snapList.length - 1; i >= 0; i--) {
+        if (snapList[i] < vh - 3) return snapList[i];
       }
-      return SNAP_COLLAPSED;
+      return metrics.collapsed;
     }
     // No flick → nearest snap
-    let closest = SNAPS[0];
-    let minDist = Math.abs(vh - SNAPS[0]);
-    for (const s of SNAPS) {
+    let closest = snapList[0];
+    let minDist = Math.abs(vh - snapList[0]);
+    for (const s of snapList) {
       const d = Math.abs(vh - s);
       if (d < minDist) { minDist = d; closest = s; }
     }
     return closest;
+  }, []);
+
+  useEffect(() => {
+    const syncSnaps = () => {
+      setSnapMetrics((prevMetrics) => {
+        const nextMetrics = calculateSnaps();
+        setSnapVh((currentVh) => {
+          const currentSnap = getSnapName(currentVh, prevMetrics);
+          return nextMetrics[currentSnap];
+        });
+        return nextMetrics;
+      });
+    };
+
+    const vv = window.visualViewport;
+    window.addEventListener("resize", syncSnaps, { passive: true });
+    window.addEventListener("orientationchange", syncSnaps, { passive: true });
+    if (vv) {
+      vv.addEventListener("resize", syncSnaps, { passive: true });
+      vv.addEventListener("scroll", syncSnaps, { passive: true });
+    }
+
+    return () => {
+      window.removeEventListener("resize", syncSnaps);
+      window.removeEventListener("orientationchange", syncSnaps);
+      if (vv) {
+        vv.removeEventListener("resize", syncSnaps);
+        vv.removeEventListener("scroll", syncSnaps);
+      }
+    };
   }, []);
 
   // ── Gesture start (from ANYWHERE on the sheet) ──
@@ -97,6 +149,10 @@ export function BottomSheet({
     if (fromHeader) {
       gestureDecided.current = true;
       isSheetDrag.current = true;
+      if (!dragSignalActive.current) {
+        dragSignalActive.current = true;
+        emitSheetEvent("traffic:sheet-drag", { active: true });
+      }
     }
   }, [snapVh]);
 
@@ -124,36 +180,51 @@ export function BottomSheet({
       if (draggingDown && isAtTop) {
         // At scroll top + dragging down → collapse the sheet
         isSheetDrag.current = true;
-      } else if (!draggingDown && snapVh < SNAP_FULL - 2) {
+      } else if (!draggingDown && snapVh < snapMetrics.full - 2) {
         // Dragging up but sheet isn't full → expand the sheet first
         isSheetDrag.current = true;
       } else {
         // Let content scroll normally
         isSheetDrag.current = false;
       }
+
+      if (isSheetDrag.current && !dragSignalActive.current) {
+        dragSignalActive.current = true;
+        emitSheetEvent("traffic:sheet-drag", { active: true });
+      }
     }
 
     if (!isSheetDrag.current) return; // let native scroll handle it
 
     // ── Move the sheet ──
-    const deltaVh = (deltaFromStart / window.innerHeight) * 100;
-    const newVh = Math.max(SNAP_COLLAPSED, Math.min(SNAP_FULL, startVh.current + deltaVh));
+    const deltaVh = (deltaFromStart / getViewportHeight()) * 100;
+    const newVh = Math.max(
+      snapMetrics.collapsed,
+      Math.min(snapMetrics.full, startVh.current + deltaVh)
+    );
     setSnapVh(newVh);
-    forceRender((n) => n + 1);
-  }, [snapVh]);
+  }, [snapVh, snapMetrics]);
 
   const handlePointerUp = useCallback(() => {
     if (!dragging.current) return;
     dragging.current = false;
 
     if (isSheetDrag.current) {
-      const snapped = resolveSnap(snapVh, velocity.current);
+      const snapped = resolveSnap(snapVh, velocity.current, snapMetrics);
       setSnapVh(snapped);
-      onSnapChange?.(getSnapName(snapped));
+      const snapName = getSnapName(snapped, snapMetrics);
+      onSnapChange?.(snapName);
+      emitSheetEvent("traffic:sheet-snap", { snap: snapName, snapVh: snapped });
     }
+
+    if (dragSignalActive.current) {
+      dragSignalActive.current = false;
+      emitSheetEvent("traffic:sheet-drag", { active: false });
+    }
+
     gestureDecided.current = false;
     isSheetDrag.current = false;
-  }, [snapVh, resolveSnap, onSnapChange]);
+  }, [snapVh, resolveSnap, onSnapChange, snapMetrics]);
 
   // ── Touch events on the HEADER (always draggable) ──
   const onHeaderTouchStart = useCallback((e: React.TouchEvent) => {
@@ -207,30 +278,33 @@ export function BottomSheet({
   const handlePeekTap = useCallback(() => {
     // Only toggle if it wasn't a real drag
     if (Math.abs(dragDistanceRef.current) > DRAG_THRESHOLD) return;
-    if (snapVh <= SNAP_COLLAPSED + 5) {
-      setSnapVh(SNAP_HALF);
+    if (snapVh <= snapMetrics.collapsed + 3) {
+      setSnapVh(snapMetrics.half);
       onSnapChange?.("half");
+      emitSheetEvent("traffic:sheet-snap", { snap: "half", snapVh: snapMetrics.half });
     } else {
-      setSnapVh(SNAP_COLLAPSED);
+      setSnapVh(snapMetrics.collapsed);
       onSnapChange?.("collapsed");
+      emitSheetEvent("traffic:sheet-snap", { snap: "collapsed", snapVh: snapMetrics.collapsed });
     }
-  }, [snapVh, onSnapChange]);
+  }, [snapVh, onSnapChange, snapMetrics]);
 
   // Track drag distance for tap detection
   useEffect(() => {
     dragDistanceRef.current = lastY.current - startY.current;
   });
 
-  const isCollapsed = snapVh <= SNAP_COLLAPSED + 5;
+  const isCollapsed = snapVh <= snapMetrics.collapsed + 3;
   const isDrag = isSheetDrag.current && gestureDecided.current;
 
   return (
     <div
       ref={sheetRef}
-      className="fixed left-0 right-0 z-[1001] bg-card rounded-t-2xl shadow-2xl border-t border-border md:hidden"
+      className="fixed left-0 right-0 bg-card rounded-t-2xl shadow-2xl border-t border-border md:hidden"
       style={{
-        height: `${snapVh}dvh`,
-        bottom: 0,
+        zIndex: "var(--z-bottom-sheet)",
+        height: `calc(var(--app-vh, 100dvh) * ${snapVh / 100})`,
+        bottom: "var(--safe-area-inset-bottom)",
         transition: isDrag ? "none" : "height 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
         willChange: "height",
       }}
@@ -259,9 +333,10 @@ export function BottomSheet({
       {/* ── CONTENT: scroll OR drag depending on gesture ── */}
       <div
         ref={scrollRef}
-        className="h-[calc(100%-40px)] overflow-x-hidden overscroll-contain"
+        className="overflow-x-hidden overscroll-contain"
         onTouchStart={onContentTouchStart}
         style={{
+          height: `calc(100% - ${HEADER_HEIGHT_PX}px)`,
           overflowY: isCollapsed ? "hidden" : "auto",
           WebkitOverflowScrolling: "touch",
           // When sheet is being dragged, disable content scroll

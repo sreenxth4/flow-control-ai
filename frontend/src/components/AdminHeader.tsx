@@ -26,7 +26,7 @@ export function AdminHeader() {
         <Link to="/" className="flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
           <img src="/logo.png" alt="Logo" className="h-6 sm:h-7 w-auto rounded-md" />
           <span className="text-xs sm:text-sm font-bold tracking-tight text-foreground">
-            AI Traffic <span className="ml-1 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-accent hidden sm:inline">Admin</span>
+            AI Traffic <span className="ml-1 rounded bg-accent/15 px-1.5 py-0.5 text-micro font-semibold text-accent hidden sm:inline">Admin</span>
           </span>
         </Link>
         <nav className="flex items-center gap-0.5 sm:gap-1">

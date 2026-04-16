@@ -5,6 +5,14 @@ export default {
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
+    screens: {
+      xs: "380px",
+      sm: "640px",
+      md: "768px",
+      lg: "1024px",
+      xl: "1280px",
+      "2xl": "1536px",
+    },
     container: {
       center: true,
       padding: "2rem",
@@ -13,6 +21,11 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.35rem" }],
+        sm: ["0.9375rem", { lineHeight: "1.45rem" }],
+        base: ["1rem", { lineHeight: "1.5rem" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

@@ -94,7 +94,7 @@ export function TrafficDashboard() {
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       {/* Map */}
-      <div className="h-[45vh] min-h-[300px] flex-shrink-0 overflow-hidden relative" style={{ isolation: "isolate" }}>
+      <div className="h-[38vh] sm:h-[42vh] md:h-[45vh] min-h-[240px] sm:min-h-[280px] flex-shrink-0 overflow-hidden relative" style={{ isolation: "isolate" }}>
         <TrafficMap
           junctions={dashboardJunctions}
           roads={safeRoads}
@@ -105,7 +105,7 @@ export function TrafficDashboard() {
       </div>
 
       {/* Content below map */}
-      <div className="space-y-5 p-5">
+      <div className="space-y-4 sm:space-y-5 p-3 sm:p-5">
         {/* Live Junction Signals */}
         <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
           <CardHeader className="pb-3">
@@ -199,7 +199,7 @@ export function TrafficDashboard() {
         </Card>
 
         {/* Health + Performance */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* System Health */}
           <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
             <CardHeader className="pb-2">

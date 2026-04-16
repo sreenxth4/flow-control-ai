@@ -90,25 +90,25 @@ const UserConditionsPage = () => {
           <Card className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/30">
             <CardContent className="p-4 flex flex-col justify-center items-center gap-1 text-center">
               <span className="text-3xl font-black tabular-nums">{analyzed}</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><ShieldCheck className="h-3 w-3"/> Analyzed</span>
+              <span className="text-micro font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1"><ShieldCheck className="h-3 w-3"/> Analyzed</span>
             </CardContent>
           </Card>
           <Card className={`transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${high > 0 ? "border-red-500/30 bg-red-500/5 shadow-sm shadow-red-500/10 hover:shadow-red-500/20 hover:border-red-500/50" : "hover:border-primary/30"}`}>
             <CardContent className="p-4 flex flex-col justify-center items-center gap-1 text-center">
               <span className={`text-3xl font-black tabular-nums ${high > 0 ? "text-red-500" : "text-muted-foreground"}`}>{high}</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">High Density</span>
+              <span className="text-micro font-bold text-muted-foreground uppercase tracking-wider">High Density</span>
             </CardContent>
           </Card>
           <Card className={`transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${medium > 0 ? "border-amber-500/30 bg-amber-500/5 shadow-sm shadow-amber-500/10 hover:shadow-amber-500/20 hover:border-amber-500/50" : "hover:border-primary/30"}`}>
             <CardContent className="p-4 flex flex-col justify-center items-center gap-1 text-center">
               <span className={`text-3xl font-black tabular-nums ${medium > 0 ? "text-amber-500" : "text-muted-foreground"}`}>{medium}</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Medium Density</span>
+              <span className="text-micro font-bold text-muted-foreground uppercase tracking-wider">Medium Density</span>
             </CardContent>
           </Card>
           <Card className={`transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${low > 0 ? "border-green-500/30 bg-green-500/5 shadow-sm shadow-green-500/10 hover:shadow-green-500/20 hover:border-green-500/50" : "hover:border-primary/30"}`}>
             <CardContent className="p-4 flex flex-col justify-center items-center gap-1 text-center">
               <span className={`text-3xl font-black tabular-nums ${low > 0 ? "text-green-500" : "text-muted-foreground"}`}>{low}</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Low Density</span>
+              <span className="text-micro font-bold text-muted-foreground uppercase tracking-wider">Low Density</span>
             </CardContent>
           </Card>
         </div>

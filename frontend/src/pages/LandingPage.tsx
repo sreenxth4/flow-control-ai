@@ -66,10 +66,10 @@ const LandingPage = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-5xl font-extrabold tracking-tight text-white mb-3 text-center">
+        <h1 className="mb-3 text-center text-3xl xs:text-4xl font-extrabold tracking-tight text-white leading-[1.1]">
           AI Traffic Flow
-          <span className="block bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
-            Control System
+          <span className="block whitespace-nowrap bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            Control&nbsp;System
           </span>
         </h1>
 

@@ -73,7 +73,7 @@ const AdminMapPage = () => {
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
               <PanelLeft className="h-4 w-4" />
             </Button>
-            <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">JUNCTIONS</span>
+            <span className="text-micro text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">JUNCTIONS</span>
           </div>
         ) : (
           <div className="h-full w-full overflow-y-auto">

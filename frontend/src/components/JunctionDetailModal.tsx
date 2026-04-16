@@ -17,7 +17,7 @@ export function JunctionDetailModal({ junctionId, open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[calc(var(--app-vh,100dvh)-var(--safe-area-inset-top)-var(--safe-area-inset-bottom)-1rem)] w-[calc(100vw-1rem)] max-w-sm xs:max-w-md md:max-w-lg lg:max-w-2xl overflow-y-auto">
         {isLoading || !data ? (
           <div className="space-y-4">
             <Skeleton className="h-6 w-48" />

@@ -22,6 +22,7 @@ const DENSITY_COLORS: Record<DensityLevel, string> = {
   MEDIUM: "#f59e0b",
   HIGH: "#ef4444",
 };
+const SIDEBAR_STORAGE_KEY = "user-route-sidebar-open";
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -75,7 +76,12 @@ const UserRoutePage = () => {
   const [routeResult, setRouteResult] = useState<MultiRouteResult | null>(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [routeLocked, setRouteLocked] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (saved !== null) return saved === "true";
+    return window.innerWidth >= 768;
+  });
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [secondsAgo, setSecondsAgo] = useState(0);
 
@@ -169,6 +175,25 @@ const UserRoutePage = () => {
     return () => clearInterval(iv);
   }, [lastFetchTime]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarOpen));
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize, { passive: true });
+    window.addEventListener("orientationchange", handleResize, { passive: true });
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, []);
+
   // ══════════════════════════════════════════════════════════════════════
   // BACKGROUND MONITORING — silently checks for better routes every 5s
   // Only active when route is locked. Never changes UI automatically.
@@ -244,7 +269,7 @@ const UserRoutePage = () => {
 
   // ── Shared sidebar content (desktop sidebar & mobile bottom sheet) ──
   const sidebarContent = (
-    <div className="space-y-4 p-4" style={{ maxWidth: 380 }}>
+    <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-foreground">Route Finder</h2>
@@ -319,7 +344,7 @@ const UserRoutePage = () => {
             {secondsAgo < 5 ? 'Just now' : `${secondsAgo}s ago`}
           </span>
           {routeLocked && (
-            <span className="ml-auto text-green-500 text-[10px] font-medium">🔒 Locked</span>
+            <span className="ml-auto text-green-500 text-micro font-medium">🔒 Locked</span>
           )}
         </div>
       )}
@@ -341,7 +366,12 @@ const UserRoutePage = () => {
             <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
               Faster route available (−{rerouteSuggestion.saving}s)
             </span>
-            <button onClick={() => setRerouteSuggestion(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setRerouteSuggestion(null)}
+              className="ml-auto text-muted-foreground hover:text-foreground"
+              aria-label="Dismiss reroute suggestion"
+              title="Dismiss reroute suggestion"
+            >
               <X className="h-3 w-3" />
             </button>
           </div>
@@ -393,7 +423,7 @@ const UserRoutePage = () => {
                       <span className={`font-mono font-bold ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
                         {formatTime(liveCost!)}
                       </span>
-                      <span className={`text-[10px] ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                      <span className={`text-micro ${liveDelta > 0 ? 'text-amber-500' : 'text-green-500'}`}>
                         ({liveDelta > 0 ? '+' : ''}{Math.round(liveDelta)}s)
                       </span>
                     </div>
@@ -542,7 +572,7 @@ const UserRoutePage = () => {
       <div
         className={`
           hidden md:block order-2 md:order-1 flex-shrink-0 border-r border-border bg-card transition-all duration-300
-          ${sidebarOpen ? "w-[380px]" : "w-12 overflow-hidden"}
+          ${sidebarOpen ? "w-[min(380px,44vw)]" : "w-12 overflow-hidden"}
         `}
       >
         {!sidebarOpen ? (
@@ -550,7 +580,7 @@ const UserRoutePage = () => {
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
               <PanelLeft className="h-4 w-4" />
             </Button>
-            <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">ROUTES</span>
+            <span className="text-micro text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">ROUTES</span>
           </div>
         ) : (
           <div className="h-full w-full overflow-y-auto overflow-x-hidden">

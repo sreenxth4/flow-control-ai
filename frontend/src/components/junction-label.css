@@ -105,7 +105,7 @@
   border-radius: 10px;
   background: rgba(32, 33, 36, 0.85);
   color: #fff;
-  font-size: 10.5px;
+  font-size: clamp(11px, 1.8vw, 12.5px);
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
@@ -129,7 +129,7 @@
 }
 
 .map-legend .legend-title {
-  font-size: 10px;
+  font-size: clamp(11px, 1.6vw, 12px);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.6);
   text-transform: uppercase;
@@ -141,7 +141,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11.5px;
+  font-size: clamp(12px, 1.9vw, 13px);
   color: #e8eaed;
   padding: 2px 0;
   font-weight: 500;
@@ -191,7 +191,7 @@
 
 /* ===== Old styles kept for compat ===== */
 .junction-label {
-  font-size: 10px;
+  font-size: clamp(11px, 1.7vw, 12px);
   font-weight: bold;
   color: #333;
   background: rgba(255, 255, 255, 0.8);
