@@ -290,6 +290,13 @@ export function TrafficMap({
       pane.style.pointerEvents = "auto";
     }
 
+    // Force size invalidation after initial render (common Leaflet fix for mobile)
+    setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    }, 100);
+
     return () => {
       map.remove();
       mapRef.current = null;

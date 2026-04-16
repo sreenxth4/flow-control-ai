@@ -3,7 +3,7 @@ import { useRef, useState, useCallback, useEffect, type ReactNode } from "react"
 // ─── Snap positions (percentage of viewport height) ───
 const SNAP_COLLAPSED = 7;   // ~60px peek
 const SNAP_HALF = 50;       // half screen
-const SNAP_FULL = 92;       // near full screen
+const SNAP_FULL = 85;       // near full screen
 const SNAPS = [SNAP_COLLAPSED, SNAP_HALF, SNAP_FULL];
 
 // Minimum px moved before we decide: "this is a drag, not a tap"
@@ -229,7 +229,7 @@ export function BottomSheet({
       ref={sheetRef}
       className="fixed left-0 right-0 z-[1001] bg-card rounded-t-2xl shadow-2xl border-t border-border md:hidden"
       style={{
-        height: `${snapVh}vh`,
+        height: `${snapVh}dvh`,
         bottom: 0,
         transition: isDrag ? "none" : "height 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
         willChange: "height",

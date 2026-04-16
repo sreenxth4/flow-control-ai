@@ -114,8 +114,59 @@
   * {
     @apply border-border;
   }
+
+  html {
+    /* Fluid base font: scales between 15px (320px viewport) and 18px (768px+) */
+    font-size: clamp(15px, 2.8vw + 6px, 18px);
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
+    min-height: 100dvh;
+    overscroll-behavior-y: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 12px;
+  }
+
+  /* Ensure minimum touch targets on mobile (44x44 per WCAG) */
+  @media (max-width: 767px) {
+    button, [role="button"], a, select, input, textarea,
+    [data-radix-collection-item] {
+      min-height: 40px;
+    }
+
+    /* Scale up select/input text for readability */
+    select, input, textarea {
+      font-size: 16px !important; /* prevents iOS zoom on focus */
+    }
+
+    /* Slightly larger labels & badges */
+    label {
+      font-size: 0.875rem; /* 14px */
+    }
+
+    /* Bump up small text for mobile readability */
+    h2 {
+      font-size: 1.25rem !important; /* 20px */
+    }
+
+    h3 {
+      font-size: 1rem !important; /* 16px */
+    }
+
+    p, span, div {
+      /* Minimum readable body text */
+      line-height: 1.5;
+    }
   }
 }
 
