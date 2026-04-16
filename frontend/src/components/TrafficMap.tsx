@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-polylinedecorator";
@@ -232,6 +232,7 @@ export function TrafficMap({
   const [routeRenderError, setRouteRenderError] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(false);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
+  const [mapZoomLevel, setMapZoomLevel] = useState(14);
 
   // Internal state: junction signal data from polling + map region metadata
   const [signalData, setSignalData] = useState<Record<string, JunctionSignalData>>({});
@@ -296,6 +297,12 @@ export function TrafficMap({
     mapRef.current = map;
     layersRef.current = L.layerGroup().addTo(map);
 
+    const onZoomChange = () => {
+      setMapZoomLevel(map.getZoom());
+    };
+    onZoomChange();
+    map.on("zoomend", onZoomChange);
+
     // Create a custom pane for signal dots so they render ABOVE junction markers
     if (!map.getPane("signalPane")) {
       const pane = map.createPane("signalPane");
@@ -312,6 +319,7 @@ export function TrafficMap({
     }, 100);
 
     return () => {
+      map.off("zoomend", onZoomChange);
       map.remove();
       mapRef.current = null;
       layersRef.current = null;
@@ -689,7 +697,10 @@ export function TrafficMap({
         className: "junction-label-tag",
       });
 
-      marker.bindPopup(`<div id="popup-wrapper-${jId}">Loading data...</div>`, { maxWidth: 340 });
+      marker.bindPopup(`<div id="popup-wrapper-${jId}">Loading data...</div>`, {
+        maxWidth: 360,
+        className: "junction-popup",
+      });
 
       // Track popup open/close to preserve across re-renders
       marker.on("popupopen", () => {
@@ -1091,45 +1102,88 @@ export function TrafficMap({
           const dotColor = getDensityColor(rdDensity);
           const now = Date.now();
           return `<tr class="border-b border-border/50 hover:bg-muted/30 transition-colors">
-            <td class="p-1 px-1.5">${signalEmoji}</td>
-            <td class="p-1 px-1.5 font-medium">${rId}</td>
-            <td class="p-1 px-1.5 truncate max-w-[120px]" title="${road?.name || ""}">${road?.name || "—"}</td>
-            <td id="pcu-${jId}-${rId}" class="p-1 px-1.5 text-right font-mono">${rdPcu}</td>
-            <td id="veh-${jId}-${rId}" class="p-1 px-1.5 text-right font-mono">${rdVehicles}</td>
-            <td id="wait-time-${jId}-${rId}" data-time="${now}" data-base-wait="${waitTime}" class="p-1 px-1.5 text-right font-mono" style="color:${signal === "RED" ? "#ef4444" : "var(--muted-foreground)"};">${signal === "RED" ? waitTime + "s" : "—"}</td>
-            <td class="p-1 px-1.5 text-center"><span class="inline-block w-2.5 h-2.5 rounded-full ring-1 ring-background" style="background:${dotColor};"></span></td>
+            <td class="p-1 px-1">${signalEmoji}</td>
+            <td class="p-1 px-1 font-medium whitespace-nowrap">${rId}</td>
+            <td class="p-1 px-1 whitespace-normal break-words leading-tight" title="${road?.name || ""}">${road?.name || "—"}</td>
+            <td id="pcu-${jId}-${rId}" class="p-1 px-1 text-right font-mono whitespace-nowrap">${rdPcu}</td>
+            <td id="veh-${jId}-${rId}" class="p-1 px-1 text-right font-mono whitespace-nowrap">${rdVehicles}</td>
+            <td id="wait-time-${jId}-${rId}" data-time="${now}" data-base-wait="${waitTime}" class="p-1 px-1 text-right font-mono whitespace-nowrap" style="color:${signal === "RED" ? "#ef4444" : "var(--muted-foreground)"};">${signal === "RED" ? waitTime + "s" : "—"}</td>
+            <td class="p-1 px-1 text-center"><span class="inline-block w-2.5 h-2.5 rounded-full ring-1 ring-background" style="background:${dotColor};"></span></td>
           </tr>`;
         }).join("");
 
         const outgoingRows = outgoingRoadIds.map((rId: string) => {
           const road = roads.find((r) => r.id === rId);
-          return `<tr class="border-b border-border/50 hover:bg-muted/30 transition-colors"><td class="p-1 px-1.5 font-medium">${rId}</td><td class="p-1 px-1.5">${road?.name || "—"}</td></tr>`;
+          return `<tr class="border-b border-border/50 hover:bg-muted/30 transition-colors"><td class="p-1 px-1 font-medium whitespace-nowrap">${rId}</td><td class="p-1 px-1 whitespace-normal break-words leading-tight">${road?.name || "—"}</td></tr>`;
         }).join("");
 
         const activeGreenRoad = roads.find((r) => r.id === activeGreen);
         const activeGreenName = activeGreenRoad?.name || activeGreen || "—";
         const popupId = `popup-countdown-${jId}`;
+        const isMobilePopup = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+        const compactMobilePopup = isMobilePopup && mapZoomLevel <= 13.8;
 
-        const html = `<div class="min-w-[280px] text-sm text-foreground">
-          <h3 class="m-0 mb-2 text-base font-bold">${propJ?.name || rj.name || jId}</h3>
-          <hr class="my-2 border-border"/>
+        const desktopHtml = `<div class="junction-popup-card w-[min(88vw,360px)] text-sm text-foreground">
+          <h3 class="m-0 mb-1.5 text-base font-bold">${propJ?.name || rj.name || jId}</h3>
+          <hr class="my-1.5 border-border"/>
           <strong class="text-xs text-muted-foreground uppercase tracking-wider">Incoming Roads</strong>
-          <table class="w-full text-xs border-collapse mt-1 mb-2">
-            <tr class="bg-muted/50 text-muted-foreground border-b border-border"><th class="p-1 px-1.5 font-medium text-left">⚡</th><th class="p-1 px-1.5 font-medium text-left">ID</th><th class="p-1 px-1.5 font-medium text-left">Name</th><th class="p-1 px-1.5 font-medium text-right">PCU</th><th class="p-1 px-1.5 font-medium text-right">Vehs</th><th class="p-1 px-1.5 font-medium text-right">Wait</th><th class="p-1 px-1.5 font-medium text-center">Dens</th></tr>
+          <table class="w-full table-fixed text-xs border-collapse mt-1 mb-1.5">
+            <tr class="bg-muted/50 text-muted-foreground border-b border-border"><th class="p-1 px-1 font-medium text-left w-5">⚡</th><th class="p-1 px-1 font-medium text-left w-10">ID</th><th class="p-1 px-1 font-medium text-left">Name</th><th class="p-1 px-1 font-medium text-right w-10">PCU</th><th class="p-1 px-1 font-medium text-right w-10">Vehs</th><th class="p-1 px-1 font-medium text-right w-10">Wait</th><th class="p-1 px-1 font-medium text-center w-10">Dens</th></tr>
             ${incomingRows || '<tr><td colspan="7" class="p-1 px-1.5 text-muted-foreground italic text-center">none</td></tr>'}
           </table>
           <strong class="text-xs text-muted-foreground uppercase tracking-wider">Outgoing Roads</strong>
-          <table class="w-full text-xs border-collapse mt-1 mb-2">
-            <tr class="bg-muted/50 text-muted-foreground border-b border-border"><th class="p-1 px-1.5 font-medium text-left">ID</th><th class="p-1 px-1.5 font-medium text-left">Name</th></tr>
+          <table class="w-full table-fixed text-xs border-collapse mt-1 mb-1.5">
+            <tr class="bg-muted/50 text-muted-foreground border-b border-border"><th class="p-1 px-1 font-medium text-left w-12">ID</th><th class="p-1 px-1 font-medium text-left">Name</th></tr>
             ${outgoingRows || '<tr><td colspan="2" class="p-1 px-1.5 text-muted-foreground italic text-center">none</td></tr>'}
           </table>
-          <hr class="my-2 border-border"/>
-          <div class="bg-primary/10 border border-primary/20 p-2.5 rounded-md mt-2 shadow-sm">
+          <hr class="my-1.5 border-border"/>
+          <div class="bg-primary/10 border border-primary/20 p-2 rounded-md mt-1.5 shadow-sm">
             <div class="text-[12px] font-bold text-primary flex items-center gap-1.5">🚦 Adaptive Signal</div>
-            <div id="active-green-${jId}" class="text-micro mt-1.5 text-foreground">🟢 <strong>${activeGreenName}</strong> — ${greenDuration}s green</div>
+            <div id="active-green-${jId}" class="text-micro mt-1 text-foreground">🟢 <strong>${activeGreenName}</strong> — ${greenDuration}s green</div>
             <div id="${popupId}" data-time="${Date.now()}" data-initial-time="${timeRemaining}" class="text-micro mt-0.5 text-muted-foreground font-medium">Re-evaluates in: <span class="font-mono">${timeRemaining}s</span></div>
           </div>
         </div>`;
+
+        const mobileHtml = `<div class="junction-popup-card junction-popup-mobile text-sm text-foreground">
+          <h3 class="m-0 mb-1 text-[15px] font-bold">${propJ?.name || rj.name || jId}</h3>
+          <strong class="text-[11px] text-muted-foreground uppercase tracking-wider">Incoming Roads</strong>
+          <table class="w-full table-fixed text-xs border-collapse mt-1 mb-1">
+            <tr class="bg-muted/50 text-muted-foreground border-b border-border"><th class="p-1 px-1 font-medium text-left w-5">⚡</th><th class="p-1 px-1 font-medium text-left w-10">ID</th><th class="p-1 px-1 font-medium text-left">Name</th><th class="p-1 px-1 font-medium text-right w-10">PCU</th><th class="p-1 px-1 font-medium text-right w-10">Vehs</th><th class="p-1 px-1 font-medium text-right w-10">Wait</th><th class="p-1 px-1 font-medium text-center w-10">Dens</th></tr>
+            ${incomingRows || '<tr><td colspan="7" class="p-1 px-1 text-muted-foreground italic text-center">none</td></tr>'}
+          </table>
+
+          <details class="popup-section mt-1">
+            <summary>Outgoing Roads</summary>
+            <table class="w-full table-fixed text-xs border-collapse mt-1">
+              <tr class="bg-muted/50 text-muted-foreground border-b border-border"><th class="p-1 px-1 font-medium text-left w-12">ID</th><th class="p-1 px-1 font-medium text-left">Name</th></tr>
+              ${outgoingRows || '<tr><td colspan="2" class="p-1 px-1 text-muted-foreground italic text-center">none</td></tr>'}
+            </table>
+          </details>
+
+          <details class="popup-section mt-1" open>
+            <summary>Adaptive Signal</summary>
+            <div class="bg-primary/10 border border-primary/20 p-2 rounded-md mt-1 shadow-sm">
+              <div id="active-green-${jId}" class="text-micro text-foreground">🟢 <strong>${activeGreenName}</strong> — ${greenDuration}s green</div>
+              <div id="${popupId}" data-time="${Date.now()}" data-initial-time="${timeRemaining}" class="text-micro mt-0.5 text-muted-foreground font-medium">Re-evaluates in: <span class="font-mono">${timeRemaining}s</span></div>
+            </div>
+          </details>
+        </div>`;
+
+        const compactMobileHtml = `<div class="junction-popup-card junction-popup-mobile junction-popup-compact text-sm text-foreground">
+          <h3 class="m-0 mb-1 text-[14px] font-bold">${propJ?.name || rj.name || jId}</h3>
+          <div class="text-[11px] text-muted-foreground uppercase tracking-wider">Zoomed-out summary</div>
+          <div class="mt-1 grid grid-cols-2 gap-1 text-micro">
+            <div class="rounded border border-border/50 bg-muted/30 px-1.5 py-1">Incoming: <strong>${incomingRoadIds.length}</strong></div>
+            <div class="rounded border border-border/50 bg-muted/30 px-1.5 py-1">Outgoing: <strong>${outgoingRoadIds.length}</strong></div>
+          </div>
+          <div class="bg-primary/10 border border-primary/20 p-2 rounded-md mt-1.5 shadow-sm">
+            <div id="active-green-${jId}" class="text-micro text-foreground">🟢 <strong>${activeGreenName}</strong> — ${greenDuration}s green</div>
+            <div id="${popupId}" data-time="${Date.now()}" data-initial-time="${timeRemaining}" class="text-micro mt-0.5 text-muted-foreground font-medium">Re-evaluates in: <span class="font-mono">${timeRemaining}s</span></div>
+          </div>
+          <div class="text-[11px] text-muted-foreground mt-1">Zoom in for full road table</div>
+        </div>`;
+
+        const html = isMobilePopup ? (compactMobilePopup ? compactMobileHtml : mobileHtml) : desktopHtml;
 
         if (openPopupJunctionRef.current === jId && marker.getPopup()?.isOpen()) {
           // Live update the DOM directly to avoid Leaflet popup flicker
@@ -1211,7 +1265,7 @@ export function TrafficMap({
       }
     });
 
-  }, [signalData, roadStates, mapRegion, roads, junctions, routePath, multiRoutePaths]);
+  }, [signalData, roadStates, mapRegion, roads, junctions, routePath, multiRoutePaths, mapZoomLevel]);
 
   // ── Fly-to with highlight animation ──
   useEffect(() => {
@@ -1253,8 +1307,16 @@ export function TrafficMap({
     throw new Error(routeRenderError);
   }
 
+  const mobileLegendScale = mapZoomLevel <= 12.5 ? 0.72 : mapZoomLevel <= 13.5 ? 0.82 : mapZoomLevel <= 14.5 ? 0.92 : 1;
+  const mobilePopupScale = mapZoomLevel <= 12.5 ? 0.7 : mapZoomLevel <= 13.5 ? 0.82 : mapZoomLevel <= 14.5 ? 0.92 : 1;
+  const mobilePopupWidth = mapZoomLevel <= 12.5 ? "72vw" : mapZoomLevel <= 13.5 ? "78vw" : mapZoomLevel <= 14.5 ? "84vw" : "88vw";
+  const overlayVars: CSSProperties = {
+    ["--mobile-popup-scale" as string]: String(mobilePopupScale),
+    ["--mobile-popup-width" as string]: mobilePopupWidth,
+  };
+
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" style={overlayVars}>
       <div ref={containerRef} className="h-full w-full" />
 
       {/* ── Adaptive Signal Legend ── */}
@@ -1281,33 +1343,27 @@ export function TrafficMap({
         <div className="text-micro text-muted-foreground font-medium">Click junction for live countdown</div>
       </div>
 
-      {/* Mobile: top-left (below header), compact + collapsible */}
+      {/* Mobile: top-right compact legend (always visible, non-obstructive) */}
       <div 
-        className="md:hidden absolute top-2 left-2 pointer-events-auto"
+        className="md:hidden absolute top-2 right-2 pointer-events-auto"
         style={{
-          transform: "translateZ(0)",
+          transform: `translateZ(0) scale(${mobileLegendScale})`,
+          transformOrigin: "top right",
           zIndex: "var(--z-map-overlays)",
           top: "calc(var(--safe-area-inset-top) + 0.5rem)",
-          left: "calc(var(--safe-area-inset-left) + 0.5rem)",
+          right: "calc(var(--safe-area-inset-right) + 0.5rem)",
         }}
       >
         <button
           onClick={() => setLegendOpen(prev => !prev)}
-          className="flex items-center gap-1.5 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg px-2.5 py-1.5 text-micro font-semibold"
+          className="flex items-center gap-1.5 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg px-2 py-1 text-micro font-semibold"
         >
-          🚦
-          {legendOpen && (
-            <span className="flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-micro">Green</span>
-              <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-micro">Red</span>
-            </span>
-          )}
-          {!legendOpen && <span>Traffic Signals</span>}
+          <span>🚦</span>
+          <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+          <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
         </button>
         {legendOpen && (
-          <div className="mt-1 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg p-2.5 min-w-[155px]">
+          <div className="mt-1 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg p-2 min-w-[132px]">
             <div className="font-bold text-micro mb-1 text-foreground">SIGNAL CONTROL</div>
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
@@ -1317,7 +1373,7 @@ export function TrafficMap({
               <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
               <span className="text-micro font-medium text-foreground">Waiting (RED)</span>
             </div>
-            <div className="text-[9px] text-muted-foreground mt-1 font-medium">Adaptive timing: 15–45s</div>
+            <div className="text-micro text-muted-foreground mt-1 font-medium">Timing: 15–45s</div>
           </div>
         )}
       </div>

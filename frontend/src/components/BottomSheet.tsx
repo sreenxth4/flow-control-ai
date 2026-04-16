@@ -51,6 +51,7 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const [snapMetrics, setSnapMetrics] = useState<SnapMetrics>(() => calculateSnaps());
   const [snapVh, setSnapVh] = useState(() => calculateSnaps()[defaultSnap]);
+  const [isDraggingVisual, setIsDraggingVisual] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +65,8 @@ export function BottomSheet({
   const lastTime = useRef(0);
   const velocity = useRef(0);           // px/ms for flick detection
   const dragSignalActive = useRef(false);
+  const liveVh = useRef(snapVh);
+  const rafId = useRef<number | null>(null);
 
   // Force re-render only when we commit to dragging
 
@@ -105,6 +108,19 @@ export function BottomSheet({
   }, []);
 
   useEffect(() => {
+    liveVh.current = snapVh;
+  }, [snapVh]);
+
+  useEffect(() => {
+    return () => {
+      if (rafId.current !== null) {
+        window.cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const syncSnaps = () => {
       setSnapMetrics((prevMetrics) => {
         const nextMetrics = calculateSnaps();
@@ -141,26 +157,27 @@ export function BottomSheet({
     isSheetDrag.current = false;
     startY.current = clientY;
     lastY.current = clientY;
-    lastTime.current = Date.now();
+    lastTime.current = performance.now();
     velocity.current = 0;
-    startVh.current = snapVh;
+    startVh.current = liveVh.current;
 
     // If touching the header area, immediately decide: this IS a sheet drag
     if (fromHeader) {
       gestureDecided.current = true;
       isSheetDrag.current = true;
+      setIsDraggingVisual(true);
       if (!dragSignalActive.current) {
         dragSignalActive.current = true;
         emitSheetEvent("traffic:sheet-drag", { active: true });
       }
     }
-  }, [snapVh]);
+  }, []);
 
   const handlePointerMove = useCallback((clientY: number) => {
     if (!dragging.current) return;
 
     const deltaFromStart = startY.current - clientY; // positive = finger moved UP
-    const now = Date.now();
+    const now = performance.now();
     const dt = now - lastTime.current;
     if (dt > 0) {
       velocity.current = (lastY.current - clientY) / dt; // positive = up
@@ -180,7 +197,7 @@ export function BottomSheet({
       if (draggingDown && isAtTop) {
         // At scroll top + dragging down → collapse the sheet
         isSheetDrag.current = true;
-      } else if (!draggingDown && snapVh < snapMetrics.full - 2) {
+      } else if (!draggingDown && liveVh.current < snapMetrics.full - 2) {
         // Dragging up but sheet isn't full → expand the sheet first
         isSheetDrag.current = true;
       } else {
@@ -189,6 +206,7 @@ export function BottomSheet({
       }
 
       if (isSheetDrag.current && !dragSignalActive.current) {
+        setIsDraggingVisual(true);
         dragSignalActive.current = true;
         emitSheetEvent("traffic:sheet-drag", { active: true });
       }
@@ -202,19 +220,34 @@ export function BottomSheet({
       snapMetrics.collapsed,
       Math.min(snapMetrics.full, startVh.current + deltaVh)
     );
-    setSnapVh(newVh);
-  }, [snapVh, snapMetrics]);
+    liveVh.current = newVh;
+
+    if (rafId.current === null) {
+      rafId.current = window.requestAnimationFrame(() => {
+        rafId.current = null;
+        if (sheetRef.current) {
+          sheetRef.current.style.height = `calc(var(--app-vh, 100dvh) * ${liveVh.current / 100})`;
+        }
+      });
+    }
+  }, [snapMetrics]);
 
   const handlePointerUp = useCallback(() => {
     if (!dragging.current) return;
     dragging.current = false;
 
     if (isSheetDrag.current) {
-      const snapped = resolveSnap(snapVh, velocity.current, snapMetrics);
+      const currentVh = liveVh.current;
+      const snapped = resolveSnap(currentVh, velocity.current, snapMetrics);
       setSnapVh(snapped);
       const snapName = getSnapName(snapped, snapMetrics);
       onSnapChange?.(snapName);
       emitSheetEvent("traffic:sheet-snap", { snap: snapName, snapVh: snapped });
+    }
+
+    if (rafId.current !== null) {
+      window.cancelAnimationFrame(rafId.current);
+      rafId.current = null;
     }
 
     if (dragSignalActive.current) {
@@ -222,9 +255,10 @@ export function BottomSheet({
       emitSheetEvent("traffic:sheet-drag", { active: false });
     }
 
+    setIsDraggingVisual(false);
     gestureDecided.current = false;
     isSheetDrag.current = false;
-  }, [snapVh, resolveSnap, onSnapChange, snapMetrics]);
+  }, [resolveSnap, onSnapChange, snapMetrics]);
 
   // ── Touch events on the HEADER (always draggable) ──
   const onHeaderTouchStart = useCallback((e: React.TouchEvent) => {
@@ -295,7 +329,7 @@ export function BottomSheet({
   });
 
   const isCollapsed = snapVh <= snapMetrics.collapsed + 3;
-  const isDrag = isSheetDrag.current && gestureDecided.current;
+  const isDrag = isDraggingVisual;
 
   return (
     <div

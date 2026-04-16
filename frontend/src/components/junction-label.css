@@ -189,6 +189,53 @@
   margin-bottom: 4px !important;
 }
 
+/* ===== Junction Popup (Mobile Compaction) ===== */
+.leaflet-popup.junction-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+}
+
+.leaflet-popup.junction-popup .leaflet-popup-content {
+  margin: 8px 10px;
+}
+
+@media (max-width: 768px) {
+  .leaflet-popup.junction-popup .leaflet-popup-content-wrapper {
+    transform: scale(var(--mobile-popup-scale, 1));
+    transform-origin: top left;
+  }
+
+  .leaflet-popup.junction-popup .leaflet-popup-content {
+    width: min(var(--mobile-popup-width, 88vw), 330px) !important;
+    max-height: 52vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .junction-popup-card {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .junction-popup-mobile .popup-section {
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    padding-top: 4px;
+  }
+
+  .junction-popup-mobile .popup-section > summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.95);
+    letter-spacing: 0.4px;
+  }
+
+  .junction-popup-mobile .popup-section > summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
 /* ===== Old styles kept for compat ===== */
 .junction-label {
   font-size: clamp(11px, 1.7vw, 12px);

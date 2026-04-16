@@ -591,17 +591,17 @@ export function VideoDetectionPanel() {
                         {/* Incoming Roads Table */}
                         <div>
                           <div className="text-micro font-semibold text-muted-foreground mb-1">INCOMING ROADS</div>
-                          <div className="overflow-x-auto">
-                          <table className="w-full min-w-[480px] text-xs" style={{ borderCollapse: "collapse" }}>
+                          <div className="overflow-x-hidden">
+                          <table className="w-full table-fixed text-micro" style={{ borderCollapse: "collapse" }}>
                             <thead>
                               <tr style={{ background: "hsl(var(--muted))" }}>
-                                <th className="text-left px-1.5 py-1 font-medium">⚡</th>
-                                <th className="text-left px-1.5 py-1 font-medium">ID</th>
-                                <th className="text-left px-1.5 py-1 font-medium">Name</th>
-                                <th className="text-right px-1.5 py-1 font-medium">PCU</th>
-                                <th className="text-right px-1.5 py-1 font-medium">Vehs</th>
-                                <th className="text-right px-1.5 py-1 font-medium">Wait</th>
-                                <th className="text-center px-1.5 py-1 font-medium">Dens</th>
+                                <th className="text-left px-1 py-1 font-medium w-6">⚡</th>
+                                <th className="text-left px-1 py-1 font-medium w-10">ID</th>
+                                <th className="text-left px-1 py-1 font-medium">Name</th>
+                                <th className="text-right px-1 py-1 font-medium w-10">PCU</th>
+                                <th className="text-right px-1 py-1 font-medium w-10">Vehs</th>
+                                <th className="text-right px-1 py-1 font-medium w-10">Wait</th>
+                                <th className="text-center px-1 py-1 font-medium w-10">Dens</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -617,15 +617,15 @@ export function VideoDetectionPanel() {
                                       opacity: isGreen ? 1 : 0.75,
                                     }}
                                   >
-                                    <td className="px-1.5 py-1">{isGreen ? "🟢" : "🔴"}</td>
-                                    <td className="px-1.5 py-1 font-mono">{rId}</td>
-                                    <td className="px-1.5 py-1 max-w-[120px] truncate">{roadObj?.name || "—"}</td>
-                                    <td className="px-1.5 py-1 text-right tabular-nums">{rd?.pcu ?? "—"}</td>
-                                    <td className="px-1.5 py-1 text-right tabular-nums">{rd?.vehicles ?? "—"}</td>
-                                    <td className="px-1.5 py-1 text-right tabular-nums" style={{ color: !isGreen && (rd?.wait_time ?? 0) > 0 ? "#ef4444" : undefined }}>
+                                    <td className="px-1 py-1">{isGreen ? "🟢" : "🔴"}</td>
+                                    <td className="px-1 py-1 font-mono whitespace-nowrap">{rId}</td>
+                                    <td className="px-1 py-1 whitespace-normal break-words leading-tight">{roadObj?.name || "—"}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums whitespace-nowrap">{rd?.pcu ?? "—"}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums whitespace-nowrap">{rd?.vehicles ?? "—"}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums whitespace-nowrap" style={{ color: !isGreen && (rd?.wait_time ?? 0) > 0 ? "#ef4444" : undefined }}>
                                       {!isGreen && (rd?.wait_time ?? 0) > 0 ? `${rd.wait_time}s` : "—"}
                                     </td>
-                                    <td className="px-1.5 py-1 text-center">
+                                    <td className="px-1 py-1 text-center">
                                       <span
                                         style={{
                                           display: "inline-block",
