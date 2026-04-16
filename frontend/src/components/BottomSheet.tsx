@@ -1,9 +1,13 @@
 import { useRef, useState, useCallback, useEffect, type ReactNode } from "react";
 
-// ─── Snap positions (percentage of viewport height from BOTTOM) ───
+// ─── Snap positions (percentage of viewport height) ───
 const SNAP_COLLAPSED = 7;   // ~60px peek
 const SNAP_HALF = 50;       // half screen
 const SNAP_FULL = 92;       // near full screen
+const SNAPS = [SNAP_COLLAPSED, SNAP_HALF, SNAP_FULL];
+
+// Minimum px moved before we decide: "this is a drag, not a tap"
+const DRAG_THRESHOLD = 8;
 
 type SnapPosition = "collapsed" | "half" | "full";
 const SNAP_MAP: Record<SnapPosition, number> = {
@@ -14,13 +18,9 @@ const SNAP_MAP: Record<SnapPosition, number> = {
 
 interface BottomSheetProps {
   children: ReactNode;
-  /** Label shown on the collapsed peek bar */
   peekLabel?: string;
-  /** Emoji/icon before the label */
   peekIcon?: string;
-  /** Initial snap position */
   defaultSnap?: SnapPosition;
-  /** Called when snap position changes */
   onSnapChange?: (snap: SnapPosition) => void;
 }
 
@@ -32,89 +32,181 @@ export function BottomSheet({
   onSnapChange,
 }: BottomSheetProps) {
   const [snapVh, setSnapVh] = useState(SNAP_MAP[defaultSnap]);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartY = useRef(0);
-  const dragStartVh = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // ── Resolve nearest snap ──
-  const resolveSnap = useCallback((vh: number): number => {
-    const snaps = [SNAP_COLLAPSED, SNAP_HALF, SNAP_FULL];
-    let closest = snaps[0];
-    let minDist = Math.abs(vh - snaps[0]);
-    for (const s of snaps) {
-      const d = Math.abs(vh - s);
-      if (d < minDist) {
-        minDist = d;
-        closest = s;
-      }
-    }
-    return closest;
-  }, []);
+  // ── Drag state (refs to avoid re-render cascades during gesture) ──
+  const dragging = useRef(false);
+  const gestureDecided = useRef(false);  // true once we know: drag or scroll
+  const isSheetDrag = useRef(false);     // true = move the sheet; false = let it scroll
+  const startY = useRef(0);
+  const startVh = useRef(0);
+  const lastY = useRef(0);
+  const lastTime = useRef(0);
+  const velocity = useRef(0);           // px/ms for flick detection
 
+  // Force re-render only when we commit to dragging
+  const [, forceRender] = useState(0);
+
+  // ── Helpers ──
   const getSnapName = (vh: number): SnapPosition => {
     if (vh <= SNAP_COLLAPSED + 5) return "collapsed";
     if (vh >= SNAP_FULL - 5) return "full";
     return "half";
   };
 
-  // ── Drag handlers ──
-  const handleDragStart = useCallback((clientY: number) => {
-    setIsDragging(true);
-    dragStartY.current = clientY;
-    dragStartVh.current = snapVh;
+  const resolveSnap = useCallback((vh: number, vel: number): number => {
+    // Velocity-aware snapping: flick up → next higher snap, flick down → next lower
+    const flickThreshold = 0.4; // px/ms
+    if (vel > flickThreshold) {
+      // Flicking UP → go to next snap above current
+      for (const s of SNAPS) {
+        if (s > vh + 3) return s;
+      }
+      return SNAP_FULL;
+    }
+    if (vel < -flickThreshold) {
+      // Flicking DOWN → go to next snap below current
+      for (let i = SNAPS.length - 1; i >= 0; i--) {
+        if (SNAPS[i] < vh - 3) return SNAPS[i];
+      }
+      return SNAP_COLLAPSED;
+    }
+    // No flick → nearest snap
+    let closest = SNAPS[0];
+    let minDist = Math.abs(vh - SNAPS[0]);
+    for (const s of SNAPS) {
+      const d = Math.abs(vh - s);
+      if (d < minDist) { minDist = d; closest = s; }
+    }
+    return closest;
+  }, []);
+
+  // ── Gesture start (from ANYWHERE on the sheet) ──
+  const handlePointerDown = useCallback((clientY: number, fromHeader: boolean) => {
+    dragging.current = true;
+    gestureDecided.current = false;
+    isSheetDrag.current = false;
+    startY.current = clientY;
+    lastY.current = clientY;
+    lastTime.current = Date.now();
+    velocity.current = 0;
+    startVh.current = snapVh;
+
+    // If touching the header area, immediately decide: this IS a sheet drag
+    if (fromHeader) {
+      gestureDecided.current = true;
+      isSheetDrag.current = true;
+    }
   }, [snapVh]);
 
-  const handleDragMove = useCallback((clientY: number) => {
-    if (!isDragging) return;
-    const deltaY = dragStartY.current - clientY; // positive = drag up
-    const deltaPx = deltaY;
-    const deltaVh = (deltaPx / window.innerHeight) * 100;
-    const newVh = Math.max(SNAP_COLLAPSED, Math.min(SNAP_FULL, dragStartVh.current + deltaVh));
+  const handlePointerMove = useCallback((clientY: number) => {
+    if (!dragging.current) return;
+
+    const deltaFromStart = startY.current - clientY; // positive = finger moved UP
+    const now = Date.now();
+    const dt = now - lastTime.current;
+    if (dt > 0) {
+      velocity.current = (lastY.current - clientY) / dt; // positive = up
+    }
+    lastY.current = clientY;
+    lastTime.current = now;
+
+    // ── Decide: sheet drag or scroll? (only once per gesture) ──
+    if (!gestureDecided.current) {
+      if (Math.abs(deltaFromStart) < DRAG_THRESHOLD) return; // wait for enough movement
+
+      gestureDecided.current = true;
+      const scrollEl = scrollRef.current;
+      const isAtTop = !scrollEl || scrollEl.scrollTop <= 0;
+      const draggingDown = deltaFromStart < 0; // finger going down
+
+      if (draggingDown && isAtTop) {
+        // At scroll top + dragging down → collapse the sheet
+        isSheetDrag.current = true;
+      } else if (!draggingDown && snapVh < SNAP_FULL - 2) {
+        // Dragging up but sheet isn't full → expand the sheet first
+        isSheetDrag.current = true;
+      } else {
+        // Let content scroll normally
+        isSheetDrag.current = false;
+      }
+    }
+
+    if (!isSheetDrag.current) return; // let native scroll handle it
+
+    // ── Move the sheet ──
+    const deltaVh = (deltaFromStart / window.innerHeight) * 100;
+    const newVh = Math.max(SNAP_COLLAPSED, Math.min(SNAP_FULL, startVh.current + deltaVh));
     setSnapVh(newVh);
-  }, [isDragging]);
+    forceRender((n) => n + 1);
+  }, [snapVh]);
 
-  const handleDragEnd = useCallback(() => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    const snapped = resolveSnap(snapVh);
-    setSnapVh(snapped);
-    onSnapChange?.(getSnapName(snapped));
-  }, [isDragging, snapVh, resolveSnap, onSnapChange]);
+  const handlePointerUp = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
 
-  // ── Touch events ──
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    handleDragStart(e.touches[0].clientY);
-  }, [handleDragStart]);
+    if (isSheetDrag.current) {
+      const snapped = resolveSnap(snapVh, velocity.current);
+      setSnapVh(snapped);
+      onSnapChange?.(getSnapName(snapped));
+    }
+    gestureDecided.current = false;
+    isSheetDrag.current = false;
+  }, [snapVh, resolveSnap, onSnapChange]);
 
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    handleDragMove(e.touches[0].clientY);
-  }, [handleDragMove]);
+  // ── Touch events on the HEADER (always draggable) ──
+  const onHeaderTouchStart = useCallback((e: React.TouchEvent) => {
+    handlePointerDown(e.touches[0].clientY, true);
+  }, [handlePointerDown]);
 
-  const onTouchEnd = useCallback(() => {
-    handleDragEnd();
-  }, [handleDragEnd]);
+  // ── Touch events on CONTENT area (smart: drag vs scroll) ──
+  const onContentTouchStart = useCallback((e: React.TouchEvent) => {
+    handlePointerDown(e.touches[0].clientY, false);
+  }, [handlePointerDown]);
 
-  // ── Mouse events (for desktop testing) ──
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
+  // ── Shared move/end (attached to window for reliability) ──
+  useEffect(() => {
+    const onMove = (e: TouchEvent) => {
+      handlePointerMove(e.touches[0].clientY);
+      // Prevent native scroll when we're dragging the sheet
+      if (isSheetDrag.current && gestureDecided.current) {
+        e.preventDefault();
+      }
+    };
+    const onEnd = () => handlePointerUp();
+
+    // passive: false so we can preventDefault on touch scroll
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
+    return () => {
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [handlePointerMove, handlePointerUp]);
+
+  // ── Mouse support (desktop testing) ──
+  const onHeaderMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    handleDragStart(e.clientY);
-  }, [handleDragStart]);
+    handlePointerDown(e.clientY, true);
+  }, [handlePointerDown]);
 
   useEffect(() => {
-    if (!isDragging) return;
-    const onMove = (e: MouseEvent) => handleDragMove(e.clientY);
-    const onUp = () => handleDragEnd();
+    const onMove = (e: MouseEvent) => handlePointerMove(e.clientY);
+    const onUp = () => handlePointerUp();
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [isDragging, handleDragMove, handleDragEnd]);
+  }, [handlePointerMove, handlePointerUp]);
 
-  // ── Tap on peek bar → toggle between collapsed and half ──
+  // ── Tap on peek bar → toggle collapsed ↔ half ──
+  const dragDistanceRef = useRef(0);
   const handlePeekTap = useCallback(() => {
+    // Only toggle if it wasn't a real drag
+    if (Math.abs(dragDistanceRef.current) > DRAG_THRESHOLD) return;
     if (snapVh <= SNAP_COLLAPSED + 5) {
       setSnapVh(SNAP_HALF);
       onSnapChange?.("half");
@@ -124,6 +216,14 @@ export function BottomSheet({
     }
   }, [snapVh, onSnapChange]);
 
+  // Track drag distance for tap detection
+  useEffect(() => {
+    dragDistanceRef.current = lastY.current - startY.current;
+  });
+
+  const isCollapsed = snapVh <= SNAP_COLLAPSED + 5;
+  const isDrag = isSheetDrag.current && gestureDecided.current;
+
   return (
     <div
       ref={sheetRef}
@@ -131,25 +231,24 @@ export function BottomSheet({
       style={{
         height: `${snapVh}vh`,
         bottom: 0,
-        transition: isDragging ? "none" : "height 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+        transition: isDrag ? "none" : "height 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
         willChange: "height",
-        touchAction: "none",
       }}
     >
-      {/* ── Drag handle ── */}
+      {/* ── HEADER: always draggable ── */}
       <div
         className="flex flex-col items-center cursor-grab active:cursor-grabbing select-none"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown}
+        onTouchStart={onHeaderTouchStart}
+        onMouseDown={onHeaderMouseDown}
         onClick={handlePeekTap}
         style={{ touchAction: "none" }}
       >
+        {/* Drag pill */}
         <div className="pt-2.5 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/40" />
         </div>
-        {snapVh <= SNAP_COLLAPSED + 5 && (
+        {/* Peek label when collapsed */}
+        {isCollapsed && (
           <div className="pb-1.5 text-xs font-medium text-foreground flex items-center gap-1.5">
             <span>{peekIcon}</span>
             <span>{peekLabel}</span>
@@ -157,10 +256,17 @@ export function BottomSheet({
         )}
       </div>
 
-      {/* ── Content (scrollable when sheet is open) ── */}
+      {/* ── CONTENT: scroll OR drag depending on gesture ── */}
       <div
-        className="h-[calc(100%-40px)] overflow-y-auto overflow-x-hidden overscroll-contain"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        ref={scrollRef}
+        className="h-[calc(100%-40px)] overflow-x-hidden overscroll-contain"
+        onTouchStart={onContentTouchStart}
+        style={{
+          overflowY: isCollapsed ? "hidden" : "auto",
+          WebkitOverflowScrolling: "touch",
+          // When sheet is being dragged, disable content scroll
+          touchAction: isDrag ? "none" : "pan-y",
+        }}
       >
         {children}
       </div>
