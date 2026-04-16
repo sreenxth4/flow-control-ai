@@ -230,6 +230,7 @@ export function TrafficMap({
   const roadLinesRef = useRef<Record<string, L.Polyline>>({}); // road polylines by ID
   const [showTurnRestrictions, setShowTurnRestrictions] = useState(true);
   const [routeRenderError, setRouteRenderError] = useState<string | null>(null);
+  const [legendOpen, setLegendOpen] = useState(false);
 
   // Internal state: junction signal data from polling + map region metadata
   const [signalData, setSignalData] = useState<Record<string, JunctionSignalData>>({});
@@ -1183,9 +1184,10 @@ export function TrafficMap({
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* Adaptive Signal Legend — high z-index to stay above Leaflet */}
+      {/* ── Adaptive Signal Legend ── */}
+      {/* Desktop: bottom-left, always expanded */}
       <div 
-        className="absolute bottom-6 left-4 z-[9999] pointer-events-auto min-w-[170px] bg-card text-card-foreground border border-border rounded-xl shadow-lg p-3"
+        className="hidden md:block absolute bottom-6 left-4 z-[500] pointer-events-auto min-w-[170px] bg-card/95 text-card-foreground border border-border rounded-xl shadow-lg p-3 backdrop-blur-sm"
         style={{ transform: "translateZ(0)" }}
       >
         <div className="font-bold text-[13px] mb-1.5 flex items-center gap-1.5 text-foreground">🚦 SIGNAL CONTROL</div>
@@ -1199,6 +1201,42 @@ export function TrafficMap({
         </div>
         <div className="text-[10px] text-muted-foreground mt-2 font-medium">Adaptive timing: 15–45s</div>
         <div className="text-[10px] text-muted-foreground font-medium">Click junction for live countdown</div>
+      </div>
+
+      {/* Mobile: top-left (below header), compact + collapsible */}
+      <div 
+        className="md:hidden absolute top-2 left-2 z-[500] pointer-events-auto"
+        style={{ transform: "translateZ(0)" }}
+      >
+        <button
+          onClick={() => setLegendOpen(prev => !prev)}
+          className="flex items-center gap-1.5 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg px-2.5 py-1.5 text-[11px] font-semibold"
+        >
+          🚦
+          {legendOpen && (
+            <span className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-[10px]">Green</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-[10px]">Red</span>
+            </span>
+          )}
+          {!legendOpen && <span>Traffic Signals</span>}
+        </button>
+        {legendOpen && (
+          <div className="mt-1 bg-card/95 backdrop-blur-sm text-card-foreground border border-border rounded-lg shadow-lg p-2.5 min-w-[155px]">
+            <div className="font-bold text-[11px] mb-1 text-foreground">SIGNAL CONTROL</div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-[11px] font-medium text-foreground">Active Green</span>
+            </div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-[11px] font-medium text-foreground">Waiting (RED)</span>
+            </div>
+            <div className="text-[9px] text-muted-foreground mt-1 font-medium">Adaptive timing: 15–45s</div>
+          </div>
+        )}
       </div>
     </div>
   );
