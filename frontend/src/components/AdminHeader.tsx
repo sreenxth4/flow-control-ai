@@ -21,7 +21,7 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="relative z-50 flex h-12 items-center justify-between border-b border-border bg-background px-2 sm:px-4">
+    <header className="sticky top-0 z-[1100] flex h-12 items-center justify-between border-b border-border bg-background px-2 sm:px-4">
       <div className="flex items-center gap-2 sm:gap-6 min-w-0">
         <Link to="/" className="flex items-center gap-1.5 sm:gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
           <img src="/logo.png" alt="Logo" className="h-6 sm:h-7 w-auto rounded-md" />

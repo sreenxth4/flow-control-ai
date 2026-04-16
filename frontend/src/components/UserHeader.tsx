@@ -14,7 +14,7 @@ export function UserHeader() {
   const { dark, toggle } = useTheme();
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-border bg-card px-2 sm:px-4">
+    <header className="sticky top-0 z-[1100] flex h-12 items-center justify-between border-b border-border bg-card px-2 sm:px-4">
       <div className="flex items-center gap-3 sm:gap-6 min-w-0">
         <Link to="/" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity flex-shrink-0">
           <img src="/logo.png" alt="Logo" className="h-6 sm:h-7 w-auto rounded-md" />

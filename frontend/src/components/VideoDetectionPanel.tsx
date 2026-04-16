@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Play, Loader2, Car, Bike, Bus, Truck, ChevronDown, ChevronUp, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Upload, Play, Loader2, Car, Bike, Bus, Truck, ChevronDown, ChevronUp, PanelLeft, PanelLeftClose, X } from "lucide-react";
 import { submitVideoDetection } from "@/lib/api";
 import { useMapData, useTrafficState } from "@/hooks/use-map-data";
 import { DensityBadge } from "@/components/DensityBadge";
@@ -363,37 +363,9 @@ export function VideoDetectionPanel() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-        {/* ═══ MAP ═══ */}
-        <div className="flex-1 min-h-0 overflow-hidden relative order-1 md:order-2" style={{ isolation: "isolate" }}>
-          <TrafficMap
-            junctions={Array.isArray(mapData?.junctions) ? mapData.junctions : []}
-            roads={Array.isArray(mapData?.roads) ? mapData.roads : []}
-            roadStates={trafficStateData?.road_states || {}}
-            flyTo={null}
-            onJunctionClick={useCallback(() => {}, [])}
-            highlightJunctionId={highlightedJunction || undefined}
-          />
-        </div>
-
-        {/* ═══ DESKTOP SIDEBAR ═══ */}
-        <div
-          className={`
-            hidden md:block order-2 md:order-1 flex-shrink-0 border-r border-border bg-card transition-all duration-300
-            ${sidebarOpen ? "w-[420px]" : "w-12 overflow-hidden"}
-          `}
-        >
-          {!sidebarOpen ? (
-            <div className="flex h-full w-12 flex-col items-center pt-3 gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">UPLOAD</span>
-            </div>
-          ) : (
-            <div className="flex h-full w-full flex-col overflow-y-auto p-5 space-y-5">
+  // ── Shared sidebar content (desktop sidebar & mobile bottom sheet) ──
+  const sidebarContent = (
+    <div className="flex flex-col space-y-5 p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-foreground">Upload & Analyze</h2>
@@ -661,96 +633,48 @@ export function VideoDetectionPanel() {
               })}
             </div>
           </div>
-          </div>
-        )}
+        </div>
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* ═══ MAP ═══ */}
+        <div className="flex-1 min-h-0 overflow-hidden relative order-1 md:order-2" style={{ isolation: "isolate" }}>
+          <TrafficMap
+            junctions={Array.isArray(mapData?.junctions) ? mapData.junctions : []}
+            roads={Array.isArray(mapData?.roads) ? mapData.roads : []}
+            roadStates={trafficStateData?.road_states || {}}
+            flyTo={null}
+            onJunctionClick={useCallback(() => {}, [])}
+            highlightJunctionId={highlightedJunction || undefined}
+          />
+        </div>
+
+        {/* ═══ DESKTOP SIDEBAR ═══ */}
+        <div
+          className={`
+            hidden md:block order-2 md:order-1 flex-shrink-0 border-r border-border bg-card transition-all duration-300
+            ${sidebarOpen ? "w-[420px]" : "w-12 overflow-hidden"}
+          `}
+        >
+          {!sidebarOpen ? (
+            <div className="flex h-full w-12 flex-col items-center pt-3 gap-3">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-8 w-8">
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-[10px] text-muted-foreground [writing-mode:vertical-lr] rotate-180 tracking-widest">UPLOAD</span>
+            </div>
+          ) : (
+            <div className="h-full w-full overflow-y-auto overflow-x-hidden">
+              {sidebarContent}
+            </div>
+          )}
         </div>
 
         {/* ═══ MOBILE BOTTOM SHEET ═══ */}
         <BottomSheet peekLabel="Upload & Analyze" peekIcon="📷" defaultSnap="half">
-          <div className="p-5 space-y-5">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Upload & Analyze</h2>
-              <p className="text-xs text-muted-foreground">Upload traffic footage for AI vehicle detection</p>
-            </div>
-
-            {/* Junction Select */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Junction</Label>
-              <Select value={selectedJunction} onValueChange={handleJunctionChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select junction..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {cameraOptions.map((j) => (
-                    <SelectItem key={j.id} value={j.id}>
-                      {j.id} — {j.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Road Select */}
-            {selectedJunction && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Incoming Road</Label>
-                <Select value={selectedRoad} onValueChange={setSelectedRoad}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select road..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {incomingRoads.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.id} — {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* File Upload */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Video File</Label>
-              <div
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => fileInputRef.current?.click()}
-                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 transition-colors hover:border-primary/50"
-              >
-                <Upload className="mb-2 h-6 w-6 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Drag & drop or click to select</p>
-                <p className="text-[10px] text-muted-foreground">.mp4 .avi .mov .mkv</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".mp4,.avi,.mov,.mkv"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                {file && (
-                  <Badge variant="secondary" className="mt-2 text-xs">
-                    {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Submit */}
-            <Button onClick={handleSubmit} disabled={loading || !file || !selectedJunction || !selectedRoad} className="w-full">
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing... ({elapsed}s)
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Run Analysis
-                </>
-              )}
-            </Button>
-          </div>
+          {sidebarContent}
         </BottomSheet>
       </div>
     </div>

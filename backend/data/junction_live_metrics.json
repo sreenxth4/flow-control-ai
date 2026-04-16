@@ -1,30 +1,30 @@
 {
   "J1": {
-    "density": "LOW",
+    "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 7.5,
+    "total_pcu": 16.0,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6285033
+    "updated_at": 1776323851.2593255
   },
   "J2": {
-    "density": "LOW",
+    "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 9.4,
+    "total_pcu": 14.299999999999999,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6322978
+    "updated_at": 1776323851.26072
   },
   "J3": {
-    "density": "LOW",
+    "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 4.6000000000000005,
+    "total_pcu": 14.299999999999999,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6339934
+    "updated_at": 1776323851.2616165
   },
   "c1": {
     "density": "MEDIUM",
@@ -43,66 +43,66 @@
     "updated_at": 1773312668.8907857
   },
   "J9": {
-    "density": "LOW",
+    "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 8.5,
+    "total_pcu": 10.399999999999999,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6515648
+    "updated_at": 1776323851.26606
   },
   "J4": {
     "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 10.100000000000001,
+    "total_pcu": 14.6,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6361418
+    "updated_at": 1776323851.2623825
   },
   "J7": {
     "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 10.8,
+    "total_pcu": 16.599999999999998,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.648341
+    "updated_at": 1776323851.2645879
   },
   "J5": {
     "density": "HIGH",
     "vehicle_count": 0,
-    "total_pcu": 62.8,
+    "total_pcu": 34.1,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6442738
+    "updated_at": 1776323851.2630794
   },
   "J6": {
     "density": "LOW",
     "vehicle_count": 0,
-    "total_pcu": 9.7,
+    "total_pcu": 9.6,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6460252
+    "updated_at": 1776323851.2638547
   },
   "J10": {
     "density": "MEDIUM",
     "vehicle_count": 0,
-    "total_pcu": 13.799999999999999,
+    "total_pcu": 14.200000000000001,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.65305
+    "updated_at": 1776323851.2668004
   },
   "J8": {
     "density": "LOW",
     "vehicle_count": 0,
-    "total_pcu": 3.0,
+    "total_pcu": 5.5,
     "vehicle_type_distribution": {},
     "average_dwell_time_seconds": null,
     "frames_analyzed": null,
-    "updated_at": 1776318651.6500838
+    "updated_at": 1776323851.2652931
   }
 }
