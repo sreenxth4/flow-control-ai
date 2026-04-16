@@ -302,7 +302,15 @@ export function TrafficMap({
     const map = mapRef.current;
     if (!container || !map) return;
     const ro = new ResizeObserver(() => {
-      setTimeout(() => map.invalidateSize({ animate: false }), 50);
+      setTimeout(() => {
+        try {
+          if (mapRef.current && containerRef.current && containerRef.current.offsetParent !== null) {
+            mapRef.current.invalidateSize({ animate: false });
+          }
+        } catch {
+          // Map may have been removed — ignore
+        }
+      }, 50);
     });
     ro.observe(container);
     return () => ro.disconnect();
