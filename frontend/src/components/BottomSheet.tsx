@@ -51,9 +51,9 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const [snapMetrics, setSnapMetrics] = useState<SnapMetrics>(() => calculateSnaps());
   const [snapVh, setSnapVh] = useState(() => calculateSnaps()[defaultSnap]);
-  const [isDraggingVisual, setIsDraggingVisual] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // ── Drag state (refs to avoid re-render cascades during gesture) ──
   const dragging = useRef(false);
@@ -67,6 +67,7 @@ export function BottomSheet({
   const dragSignalActive = useRef(false);
   const liveVh = useRef(snapVh);
   const rafId = useRef<number | null>(null);
+  const dragViewportHeight = useRef(1);
 
   // Force re-render only when we commit to dragging
 
@@ -105,6 +106,30 @@ export function BottomSheet({
       if (d < minDist) { minDist = d; closest = s; }
     }
     return closest;
+  }, []);
+
+  const beginDragVisual = useCallback(() => {
+    const sheetEl = sheetRef.current;
+    if (sheetEl) {
+      sheetEl.style.transition = "none";
+      sheetEl.style.willChange = "height";
+    }
+    const contentEl = contentRef.current;
+    if (contentEl) {
+      contentEl.style.touchAction = "none";
+    }
+  }, []);
+
+  const endDragVisual = useCallback(() => {
+    const sheetEl = sheetRef.current;
+    if (sheetEl) {
+      sheetEl.style.transition = "height 0.3s cubic-bezier(0.32, 0.72, 0, 1)";
+      sheetEl.style.willChange = "auto";
+    }
+    const contentEl = contentRef.current;
+    if (contentEl) {
+      contentEl.style.touchAction = "pan-y";
+    }
   }, []);
 
   useEffect(() => {
@@ -160,18 +185,19 @@ export function BottomSheet({
     lastTime.current = performance.now();
     velocity.current = 0;
     startVh.current = liveVh.current;
+    dragViewportHeight.current = Math.max(getViewportHeight(), 1);
 
     // If touching the header area, immediately decide: this IS a sheet drag
     if (fromHeader) {
       gestureDecided.current = true;
       isSheetDrag.current = true;
-      setIsDraggingVisual(true);
+      beginDragVisual();
       if (!dragSignalActive.current) {
         dragSignalActive.current = true;
         emitSheetEvent("traffic:sheet-drag", { active: true });
       }
     }
-  }, []);
+  }, [beginDragVisual]);
 
   const handlePointerMove = useCallback((clientY: number) => {
     if (!dragging.current) return;
@@ -206,7 +232,7 @@ export function BottomSheet({
       }
 
       if (isSheetDrag.current && !dragSignalActive.current) {
-        setIsDraggingVisual(true);
+        beginDragVisual();
         dragSignalActive.current = true;
         emitSheetEvent("traffic:sheet-drag", { active: true });
       }
@@ -215,7 +241,7 @@ export function BottomSheet({
     if (!isSheetDrag.current) return; // let native scroll handle it
 
     // ── Move the sheet ──
-    const deltaVh = (deltaFromStart / getViewportHeight()) * 100;
+    const deltaVh = (deltaFromStart / dragViewportHeight.current) * 100;
     const newVh = Math.max(
       snapMetrics.collapsed,
       Math.min(snapMetrics.full, startVh.current + deltaVh)
@@ -230,7 +256,7 @@ export function BottomSheet({
         }
       });
     }
-  }, [snapMetrics]);
+  }, [snapMetrics, beginDragVisual]);
 
   const handlePointerUp = useCallback(() => {
     if (!dragging.current) return;
@@ -255,10 +281,10 @@ export function BottomSheet({
       emitSheetEvent("traffic:sheet-drag", { active: false });
     }
 
-    setIsDraggingVisual(false);
+    endDragVisual();
     gestureDecided.current = false;
     isSheetDrag.current = false;
-  }, [resolveSnap, onSnapChange, snapMetrics]);
+  }, [resolveSnap, onSnapChange, snapMetrics, endDragVisual]);
 
   // ── Touch events on the HEADER (always draggable) ──
   const onHeaderTouchStart = useCallback((e: React.TouchEvent) => {
@@ -280,13 +306,16 @@ export function BottomSheet({
       }
     };
     const onEnd = () => handlePointerUp();
+    const onCancel = () => handlePointerUp();
 
     // passive: false so we can preventDefault on touch scroll
     window.addEventListener("touchmove", onMove, { passive: false });
     window.addEventListener("touchend", onEnd);
+    window.addEventListener("touchcancel", onCancel);
     return () => {
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onCancel);
     };
   }, [handlePointerMove, handlePointerUp]);
 
@@ -328,8 +357,11 @@ export function BottomSheet({
     dragDistanceRef.current = lastY.current - startY.current;
   });
 
+  useEffect(() => {
+    endDragVisual();
+  }, [endDragVisual]);
+
   const isCollapsed = snapVh <= snapMetrics.collapsed + 3;
-  const isDrag = isDraggingVisual;
 
   return (
     <div
@@ -339,8 +371,8 @@ export function BottomSheet({
         zIndex: "var(--z-bottom-sheet)",
         height: `calc(var(--app-vh, 100dvh) * ${snapVh / 100})`,
         bottom: "var(--safe-area-inset-bottom)",
-        transition: isDrag ? "none" : "height 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
-        willChange: "height",
+        transition: "height 0.3s cubic-bezier(0.32, 0.72, 0, 1)",
+        willChange: "auto",
       }}
     >
       {/* ── HEADER: always draggable ── */}
@@ -366,15 +398,17 @@ export function BottomSheet({
 
       {/* ── CONTENT: scroll OR drag depending on gesture ── */}
       <div
-        ref={scrollRef}
+        ref={(node) => {
+          contentRef.current = node;
+          scrollRef.current = node;
+        }}
         className="overflow-x-hidden overscroll-contain"
         onTouchStart={onContentTouchStart}
         style={{
           height: `calc(100% - ${HEADER_HEIGHT_PX}px)`,
           overflowY: isCollapsed ? "hidden" : "auto",
           WebkitOverflowScrolling: "touch",
-          // When sheet is being dragged, disable content scroll
-          touchAction: isDrag ? "none" : "pan-y",
+          touchAction: "pan-y",
         }}
       >
         {children}
