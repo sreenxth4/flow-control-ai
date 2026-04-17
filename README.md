@@ -2,6 +2,7 @@
 
 An intelligent traffic management system that combines **real-time vehicle detection** (YOLOv9), **adaptive signal optimization** (Max-Pressure algorithm), and **dynamic route planning** (Dijkstra + OSRM) to optimize urban traffic flow.
 
+🔗 Live Demo: https://flow-control-ai.vercel.app
 ---
 
 ## 📁 Project Structure
