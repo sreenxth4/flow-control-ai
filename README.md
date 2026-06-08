@@ -71,6 +71,19 @@ The dev server starts at `http://localhost:5173`.
 
 ---
 
+## 🔐 Demo Credentials
+
+The application has two portals:
+
+| Portal | Access |
+|---|---|
+| **User Portal** | Open access — no login required |
+| **Admin Portal** | PIN: `1234` |
+
+> The Admin Portal includes video upload & detection, signal optimization controls, and the system dashboard.
+
+---
+
 ## ✨ Key Features
 
 | Feature | Description |
