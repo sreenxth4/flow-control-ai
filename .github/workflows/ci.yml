@@ -49,4 +49,4 @@ jobs:
 
       - name: Python Syntax and Module Verification
         run: |
-          python -m py_compile backend/app.py backend/config.py backend/run.py backend/schemas.py
+          python -m py_compile backend/app.py backend/config.py backend/run.py backend/schemas.py 
